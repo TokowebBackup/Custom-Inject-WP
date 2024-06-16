@@ -1,6 +1,6 @@
 <?php
 function get_geolocation($ip) {
-    $url = "http://ip-api.com/json/{$ip}?fields=status,message,lat,lon";
+    $url = "http://ip-api.com/json/{$ip}";
 
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $url);
@@ -12,7 +12,7 @@ function get_geolocation($ip) {
 }
 
 // Mendapatkan IP pengunjung
-$ip = $_SERVER['REMOTE_ADDR'] ?? '103.139.10.11';
+$ip = $_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['REMOTE_ADDR'];
 $radius = [
     [
         "key" => "bandung",
@@ -25,6 +25,24 @@ $radius = [
         "lat" => "-6.219109243545298",
         "lng" => "106.86234063435637",
         "radius" => 20000
+    ],
+    [
+        "key" => "bogor",
+        "lat" => "106.81448710843782",
+        "lng" => "-6.545657535287815",
+        "radius" => 15000
+    ],
+    [
+        "key" => "tasikmalaya",
+        "lat" => "108.23413376452469",
+        "lng" => "-7.330977788854294",
+        "radius" => 15000
+    ],
+    [
+        "key" => "garut",
+        "lat" => "108.23413376452469",
+        "lng" => "-7.330977788854294",
+        "radius" => 15000
     ]
 ];
 
@@ -43,7 +61,16 @@ if ($location_data['status'] == 'success') {
     }
 
     $map_shortcode .= "[leaflet-scale position=topright]";
-    echo do_shortcode($map_shortcode);
 } else {
     echo "Error: " . $location_data['message'] . "<br>";
 }
+?>
+
+<ul class="list-group" style="list-style: none;">
+  <li class="list-group-item">Ip Address : <?=$ip?></li>
+  <li class="list-group-item"> <img src="https://flagsapi.com/<?=$location_data['countryCode']?>/shiny/64.png"> </li>
+  <li class="list-group-item">Lokasi Kamu : <?=$location_data['city']?> - <?=$location_data['regionName']?></li>
+  <li class="list-group-item">
+    <?=do_shortcode($map_shortcode);?>
+  </li>
+</ul>
