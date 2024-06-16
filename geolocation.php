@@ -12,36 +12,37 @@ function get_geolocation($ip) {
 }
 
 // Mendapatkan IP pengunjung
-$ip = $_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['REMOTE_ADDR'];
+$ip = "103.139.10.11";
+// $_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['REMOTE_ADDR'];
 $radius = [
     [
-        "key" => "bandung",
+        "key" => "Bandung",
         "lat" => "-6.921602417858295",
         "lng" => "107.60827369802438",
-        "radius" => 17500
+        "radius" => 30000
     ],
     [
-        "key" => "jakarta",
+        "key" => "Jakarta",
         "lat" => "-6.219109243545298",
         "lng" => "106.86234063435637",
-        "radius" => 20000
+        "radius" => 100000
     ],
     [
-        "key" => "bogor",
-        "lat" => "106.81448710843782",
-        "lng" => "-6.545657535287815",
+        "key" => "Bogor",
+        "lat" => floatval(-6.545657535287815),
+        "lng" => floatval(106.81448710843782),
         "radius" => 15000
     ],
     [
-        "key" => "tasikmalaya",
-        "lat" => "108.23413376452469",
-        "lng" => "-7.330977788854294",
+        "key" => "Tasikmalaya",
+        "lat" => floatval(-7.330977788854294),
+        "lng" => floatval(108.23413376452469),
         "radius" => 15000
     ],
     [
-        "key" => "garut",
-        "lat" => "108.23413376452469",
-        "lng" => "-7.330977788854294",
+        "key" => "Garut",
+        "lat" => floatval(-7.330977788854294),
+        "lng" => floatval(108.23413376452469),
         "radius" => 15000
     ]
 ];
@@ -50,14 +51,17 @@ $radius = [
 $location_data = get_geolocation($ip);
 
 if ($location_data['status'] == 'success') {
+    $messageRadius;
     $latitude = $location_data['lat'];
     $longitude = $location_data['lon'];
-    $map_shortcode = "[leaflet-map lat={$latitude} lng={$longitude} zoom=8.2 height='450' zoomcontrol !show_scale]" . "<br/>";
-
+    $map_shortcode = "[leaflet-map lat={$latitude} lng={$longitude} zoom=10 height='450' zoomcontrol !show_scale]" . "<br/>";
     // Loop melalui array $radius untuk menambahkan leaflet-circle dan leaflet-marker shortcodes
     foreach ($radius as $area) {
-        $map_shortcode .= "[leaflet-circle lat={$area['lat']} lng={$area['lng']} radius={$area['radius']} draggable]" . 
-                          "[leaflet-marker lat={$area['lat']} lng={$area['lng']} draggable svg background='#a23a93' iconClass='fa-solid fa-building-circle-check' color='#fff']MyRepublic Area {$area['key']}[/leaflet-marker]" . "<br/>";
+        if($area['lat'] <= $location_data['lat'] || $area['key'] === $location_data['city']) {
+            $messageRadius = "Mendekati atau Dalam Radius yang mendekati.";
+            $map_shortcode .= "[leaflet-circle lat={$area['lat']} lng={$area['lng']} radius={$area['radius']} draggable]" . 
+            "[leaflet-marker lat={$area['lat']} lng={$area['lng']} draggable svg background='#a23a93' iconClass='fa-solid fa-building-circle-check' color='#fff']MyRepublic Area {$area['key']}[/leaflet-marker]" . "<br/>";     
+        }
     }
 
     $map_shortcode .= "[leaflet-scale position=topright]";
@@ -71,6 +75,13 @@ if ($location_data['status'] == 'success') {
   <li class="list-group-item"> <img src="https://flagsapi.com/<?=$location_data['countryCode']?>/shiny/64.png"> </li>
   <li class="list-group-item">Lokasi Kamu : <?=$location_data['city']?> - <?=$location_data['regionName']?></li>
   <li class="list-group-item">
-    <?=do_shortcode($map_shortcode);?>
+  <?php if($messageRadius !== "" || $messageRadius !== NULL):?>  
+    <div class="alert alert-info" role="alert">
+        <?=$messageRadius?>
+    </div>
+    <?php endif;?>
+ </li>
+  <li class="list-group-item">
+  <?=do_shortcode($map_shortcode);?>
   </li>
 </ul>
