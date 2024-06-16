@@ -11,20 +11,18 @@ function get_geolocation($ip) {
     return json_decode($response, true);
 }
 
-// Mendapatkan IP pengunjung
 $ip = $_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['REMOTE_ADDR'];
-// $_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['REMOTE_ADDR'];
 $radius = [
     [
         "key" => "Bandung",
-        "lat" => "-6.921602417858295",
-        "lng" => "107.60827369802438",
+        "lat" => floatval(-6.921602417858295),
+        "lng" => floatval(107.60827369802438),
         "radius" => 30000
     ],
     [
         "key" => "Jakarta",
-        "lat" => "-6.219109243545298",
-        "lng" => "106.86234063435637",
+        "lat" => floatval(-6.219109243545298),
+        "lng" => floatval(106.86234063435637),
         "radius" => 100000
     ],
     [
@@ -43,6 +41,12 @@ $radius = [
         "key" => "Garut",
         "lat" => floatval(-7.330977788854294),
         "lng" => floatval(108.23413376452469),
+        "radius" => 15000
+    ],
+    [
+        "key" => "Sukabumi",
+        "lat" => floatval(-6.924875846160619),
+        "lng" => floatval(106.93375044456798),
         "radius" => 15000
     ]
 ];
