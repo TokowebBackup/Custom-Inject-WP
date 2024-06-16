@@ -12,7 +12,7 @@ function get_geolocation($ip) {
 }
 
 // Mendapatkan IP pengunjung
-$ip = "103.139.10.11";
+$ip = $_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['REMOTE_ADDR'];
 // $_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['REMOTE_ADDR'];
 $radius = [
     [
