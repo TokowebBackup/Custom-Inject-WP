@@ -34,12 +34,12 @@ $location_data = get_geolocation($ip);
 if ($location_data['status'] == 'success') {
     $latitude = $location_data['lat'];
     $longitude = $location_data['lon'];
-    $map_shortcode = "[leaflet-map lat={$latitude} lng={$longitude} zoom=8.2 zoomcontrol !show_scale]" . "<br/>";
+    $map_shortcode = "[leaflet-map lat={$latitude} lng={$longitude} zoom=8.2 height='450' zoomcontrol !show_scale]" . "<br/>";
 
     // Loop melalui array $radius untuk menambahkan leaflet-circle dan leaflet-marker shortcodes
     foreach ($radius as $area) {
         $map_shortcode .= "[leaflet-circle lat={$area['lat']} lng={$area['lng']} radius={$area['radius']} draggable]" . 
-                          "[leaflet-marker lat={$area['lat']} lng={$area['lng']} draggable svg background='#a23a93' iconClass='fa-solid fa-building-circle-check' color='gold']MyRepublic Area {$area['key']}[/leaflet-marker]" . "<br/>";
+                          "[leaflet-marker lat={$area['lat']} lng={$area['lng']} draggable svg background='#a23a93' iconClass='fa-solid fa-building-circle-check' color='#fff']MyRepublic Area {$area['key']}[/leaflet-marker]" . "<br/>";
     }
 
     $map_shortcode .= "[leaflet-scale position=topright]";
