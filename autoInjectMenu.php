@@ -17,6 +17,7 @@ function whatsapp_marketplace_settings_page() {
     ?>
     <div class="wrap">
         <h1>Setting Link WhatsApp & Marketplace</h1>
+        <blockquote>Create BY <a href="https://tokoweb.co">Web Developer @ TokoWeb</a></blockquote>
         <form method="post" action="options.php">
             <?php settings_fields('whatsapp_marketplace_group'); ?>
             <?php do_settings_sections('whatsapp_marketplace_group'); ?>
