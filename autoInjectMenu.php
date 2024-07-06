@@ -3,7 +3,7 @@
 Plugin Name: WhatsApp & Marketplace Settings
 Description: Plugin untuk mengatur link WhatsApp dan marketplace.
 Version: 1.0
-Author: Your Name
+Author: Puji Ermanto<pujiermanto@gmail.com>|<puji@tokoweb.co>
 */
 
 // Menu Setting
