@@ -1,4 +1,5 @@
 <?php
+// @author: Puji Ermanto <pujiermanto@gmail.com>
 function display_post_by_title($atts) {
     $atts = shortcode_atts(
         array(
