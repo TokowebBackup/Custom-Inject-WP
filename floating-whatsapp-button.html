@@ -1,0 +1,113 @@
+<!-- Tambahkan ini ke footer.php atau wp_footer -->
+<div id="whatsapp-float-button">
+	<button id="whatsapp-button" onclick="toggleWhatsappMenu()">
+		<i class="fab fa-whatsapp fa-2xl"></i>
+		<div id="spinner" style="display:none;"></div>
+	</button>
+	<div id="whatsapp-menu">
+		<a href="#" id="whatsapp-link1"><i class="fab fa-whatsapp"></i> Evadnebeauty Admin 1</a>
+		<a href="#" id="whatsapp-link2"><i class="fab fa-whatsapp"></i> Evadnebeauty Admin 2</a>
+	</div>
+</div>
+<style>
+    #whatsapp-float-button {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        z-index: 1000;
+    }
+
+    #whatsapp-button {
+        background-color: #ED2D56; /* Warna latar belakang tombol */
+        color: white;
+        border: none;
+        width: 70px; /* Lebar tombol */
+        height: 70px; /* Tinggi tombol */
+        border-radius: 50%; /* Bentuk bulat */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 24px;
+        position: relative; /* Untuk spinner */
+        overflow: hidden; /* Untuk menyembunyikan spinner di luar tombol */
+        z-index: 1001; /* Pastikan tombol di atas menu */
+    }
+
+    #whatsapp-button i {
+        z-index: 1; /* Menempatkan ikon di atas spinner */
+    }
+
+    #spinner {
+        position: absolute;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top: 3px solid white;
+        width: 24px;
+        height: 24px;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        animation: spin 1s linear infinite;
+        z-index: 0;
+    }
+
+    @keyframes spin {
+        0% { transform: translate(-50%, -50%) rotate(0deg); }
+        100% { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+
+    #whatsapp-menu {
+        display: none;
+        flex-direction: column;
+        position: absolute;
+        bottom: 80px; /* Jarak antara menu dan tombol */
+        left: 0;
+        z-index: 1000; /* Pastikan menu di bawah tombol */
+        width: 250px; /* Lebar menu */
+        background-color: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    #whatsapp-menu a {
+        display: block;
+        background-color: #ED2D56; /* Warna latar belakang item menu */
+        color: white;
+        text-decoration: none;
+        padding: 10px;
+        border-radius: 5px;
+        margin-bottom: 5px;
+        text-align: center;
+    }
+
+    #whatsapp-menu a:hover {
+        background-color: #25D366; /* Warna hover menu */
+    }
+</style>
+
+<script>
+    function toggleWhatsappMenu() {
+        var menu = document.getElementById('whatsapp-menu');
+        var spinner = document.getElementById('spinner');
+        
+        // Menampilkan spinner
+        spinner.style.display = 'block';
+
+        // Mengatur waktu delay untuk menghilangkan spinner dan menampilkan menu
+        setTimeout(function() {
+            spinner.style.display = 'none';
+            menu.style.display = (menu.style.display === 'none' || menu.style.display === '') ? 'flex' : 'none';
+        }, 1000); // Ubah waktu delay sesuai kebutuhan
+    }
+
+    // Menambahkan event listener untuk menyembunyikan menu ketika mengklik di luar
+    document.addEventListener('click', function(event) {
+        var button = document.getElementById('whatsapp-button');
+        var menu = document.getElementById('whatsapp-menu');
+
+        if (!button.contains(event.target) && !menu.contains(event.target)) {
+            menu.style.display = 'none';
+        }
+    });
+</script>
