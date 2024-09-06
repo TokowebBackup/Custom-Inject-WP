@@ -1,3 +1,4 @@
+<?php
 // Office Excel Custom plugins
 add_action('restrict_manage_posts', 'add_export_button_for_test_drive');
 
