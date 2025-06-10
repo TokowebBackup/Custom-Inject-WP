@@ -128,7 +128,6 @@ function woo_add_beli_langsung_button()
     // ✅ Tambahkan pengecekan ini:
     if (get_post_meta($product_id, '_enable_unit_converter', true) !== 'yes') return;
 
-    // ... lanjutkan kode seperti sebelumnya:
     $product_title = $product->get_title();
     $product_url   = get_permalink($product_id);
     $site_name     = get_bloginfo('name');
