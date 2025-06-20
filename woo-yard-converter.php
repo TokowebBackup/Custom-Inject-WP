@@ -261,11 +261,8 @@ function woo_add_beli_langsung_button()
                 if (!waBtn) return;
 
                 if (addToCartBtn && waBtn) {
-                    // Buat wrapper div
                     const wrapper = document.createElement('div');
                     wrapper.className = 'woo-btn-wrapper';
-
-                    // Sisipkan tombol ke wrapper
                     addToCartBtn.parentNode.insertBefore(wrapper, addToCartBtn);
                     wrapper.appendChild(addToCartBtn);
                     wrapper.appendChild(waBtn);
@@ -281,21 +278,47 @@ function woo_add_beli_langsung_button()
                     const qtyInput = document.querySelector('input[name="quantity"]');
                     const qty = qtyInput ? parseFloat(qtyInput.value) || 1 : 1;
 
-                    const variationData = jQuery('form.variations_form').data('product_variations');
-                    const variationID = parseInt(jQuery('input[name="variation_id"]').val());
-                    const variation = variationData?.find(v => v.variation_id === variationID);
-                    const hargaRaw = variation ? variation.display_price : 0;
-                    const total = hargaRaw * unit;
-
-                    const hargaFormat = new Intl.NumberFormat('id-ID').format(hargaRaw);
-                    const totalFormat = new Intl.NumberFormat('id-ID').format(total);
-
                     const title = document.querySelector('h1.product_title')?.textContent.trim() || 'Produk';
                     const url = window.location.href;
+
+                    const variationID = parseInt(jQuery('input[name="variation_id"]').val());
+                    const variationData = jQuery('form.variations_form').data('product_variations');
+                    const variation = variationData?.find(v => v.variation_id === variationID);
+
+                    let hargaRaw = 0;
+                    let gambar = '-';
+                    let warna = '-';
+                    for (const [key, value] of Object.entries(variation.attributes)) {
+                        if (key.includes('attribute_pa_warna')) {
+                            warna = value.replace(/-/g, ' ').toUpperCase();
+                            break;
+                        }
+                    }
+
+                    if (variation) {
+                        hargaRaw = variation.display_price || 0;
+
+                        // Ambil warna dari attributes
+                        const attrWarna = Object.values(variation.attributes).find(v => v.includes('warna'));
+                        if (attrWarna) {
+                            warna = attrWarna.replace(/-/g, ' ').toUpperCase();
+                        }
+
+                        // Ambil gambar dari object variation.image.src
+                        if (variation.image && variation.image.src) {
+                            gambar = variation.image.src;
+                        }
+                    }
+
+                    const total = hargaRaw * unit;
+                    const hargaFormat = new Intl.NumberFormat('id-ID').format(hargaRaw);
+                    const totalFormat = new Intl.NumberFormat('id-ID').format(total);
 
                     const pesan = `Halo Admin <?php echo $site_name; ?>, saya tertarik untuk membeli produk berikut:\n\n` +
                         `📌 *Nama Produk:* ${title}\n` +
                         `📏 *Jumlah:* ${qty} ${unitSelected}\n` +
+                        `🎨 *Warna:* ${warna}\n` +
+                        `🖼️ *Gambar:* ${gambar}\n` +
                         `💸 *Harga per ${unit} ${unitSelected}:* Rp${hargaFormat}\n` +
                         `💳 *Total Bayar:* Rp${totalFormat}\n\n` +
                         `🔗 *Link Produk:* ${url}\n\n` +
@@ -303,7 +326,6 @@ function woo_add_beli_langsung_button()
 
                     const nomor = waBtn.getAttribute('data-wa');
                     const waLink = `https://wa.me/${nomor}?text=${encodeURIComponent(pesan)}`;
-
                     window.open(waLink, '_blank');
                 });
             });
@@ -410,7 +432,7 @@ function woo_register_yard_converter_styles()
         }
 
         .woo-flex-row input[type='number'] {
-            width: 80px;
+            width: 150px;
             padding: 8px;
             border: none;
         }
@@ -510,7 +532,7 @@ function woo_converter_input_fields_conditional()
                 // });
                 const priceElem = document.querySelector('.woocommerce-variation-price .price');
                 if (priceElem) {
-                    priceElem.innerHTML = `Rp ${Math.round(totalPrice).toLocaleString('id-ID')}, ${length} Yard (Bruto)`;
+                    priceElem.innerHTML = `Rp ${Math.round(totalPrice).toLocaleString('id-ID')} (${length} Yard)`;
                 }
                 // Update harga per yard
                 if (priceDisplay) {
@@ -530,7 +552,7 @@ function woo_converter_input_fields_conditional()
                 setTimeout(() => {
                     const priceElem = document.querySelector('.woocommerce-variation-price .price');
                     if (priceElem) {
-                        priceElem.innerHTML = `Rp ${Math.round(totalPrice).toLocaleString('id-ID')}, ${length} Yard (Bruto)`;
+                        priceElem.innerHTML = `Rp ${Math.round(totalPrice).toLocaleString('id-ID')} (${length} Yard)`;
                     }
 
                     const priceDisplay = document.querySelector('#price-per-yard-display');
@@ -596,6 +618,77 @@ add_action('woocommerce_after_single_product', function () {
     </script>
     <?php
 });
+
+// Added variation
+add_filter('woocommerce_add_cart_item_data', function ($data, $product_id, $variation_id) {
+    if (!empty($_POST['input_satuan'])) {
+        $yard = floatval($_POST['input_satuan']);
+        if ($yard > 0) {
+            $data['input_satuan'] = $yard;
+        }
+    }
+
+    // Cari attribute warna apa pun secara dinamis
+    foreach ($_POST as $key => $value) {
+        if (strpos($key, 'attribute_pa_warna') !== false && !empty($value)) {
+            $data['variation_warna'] = sanitize_text_field($value);
+            break;
+        }
+    }
+
+    return $data;
+}, 10, 3);
+
+
+add_action('woocommerce_variation_options', 'add_image_variation_field', 10, 3);
+function add_image_variation_field($loop, $variation_data, $variation)
+{
+    // Ambil ID gambar yang sudah ada
+    $image_id = get_post_meta($variation->ID, 'upload_image_id', true);
+
+    // Tampilkan input untuk ID gambar
+    woocommerce_wp_hidden_input([
+        'id' => 'upload_image_id[' . $loop . ']',
+        'value' => $image_id
+    ]);
+
+    // Tampilkan gambar jika ada
+    if ($image_id) {
+        echo wp_get_attachment_image($image_id, 'thumbnail');
+    }
+}
+
+add_action('woocommerce_save_product_variation', 'save_image_variation_field', 10, 2);
+function save_image_variation_field($variation_id, $i)
+{
+    // Simpan ID gambar
+    if (isset($_POST['upload_image_id'][$i])) {
+        update_post_meta($variation_id, 'upload_image_id', intval($_POST['upload_image_id'][$i]));
+    }
+}
+
+
+add_filter('woocommerce_cart_item_display', function ($item_name, $cart_item, $cart_item_key) {
+    if (isset($cart_item['variation_warna'])) {
+        $item_name .= '<br><small>Warna: ' . esc_html($cart_item['variation_warna']) . '</small>';
+    }
+    return $item_name;
+}, 10, 3);
+
+add_filter('woocommerce_cart_item_name', function ($item_name, $cart_item, $cart_item_key) {
+    if (isset($cart_item['variation_id'])) {
+        // Ambil ID variasi dari item
+        $variation_id = $cart_item['variation_id'];
+        // Ambil ID gambar dari metadata
+        $image_id = get_post_meta($variation_id, 'upload_image_id', true);
+        // Jika ada gambar, tambahkan ke nama item
+        if ($image_id) {
+            $image_url = wp_get_attachment_url($image_id);
+            $item_name = '<img src="' . esc_url($image_url) . '" alt="Warna" style="width: 50px; height: auto; margin-right: 5px;">' . $item_name;
+        }
+    }
+    return $item_name;
+}, 10, 3);
 
 
 add_filter('woocommerce_get_price_html', 'custom_variable_price_per_yard_display', 100, 2);
