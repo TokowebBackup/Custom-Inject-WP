@@ -887,3 +887,27 @@ function woo_autoselect_default_variation()
     </script>
 <?php
 }
+
+
+add_action('wp_ajax_update_cart_quantity', 'custom_update_cart_quantity');
+add_action('wp_ajax_nopriv_update_cart_quantity', 'custom_update_cart_quantity'); // opsional, jika user belum login
+
+function custom_update_cart_quantity()
+{
+    check_ajax_referer('update_cart_nonce'); // validasi nonce
+
+    $new_qty = isset($_POST['input_satuan']) ? floatval($_POST['input_satuan']) : 0;
+    if ($new_qty <= 0) {
+        wp_send_json_error('Kuantitas tidak valid');
+    }
+
+    foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) {
+        WC()->cart->set_quantity($cart_item_key, $new_qty, true); // true: trigger recalculation
+        WC()->cart->cart_contents[$cart_item_key]['input_satuan'] = $new_qty;
+        break; // hanya 1 item
+    }
+
+    WC()->cart->calculate_totals();
+
+    wp_send_json_success('Berhasil update cart');
+}
