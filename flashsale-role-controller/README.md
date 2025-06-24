@@ -56,12 +56,10 @@ flashsale-role-control/
 │
 ├── flashsale-role-control.php       ; file utama plugin
 ├── includes/
-│   ├── class-user-role-manager.php  ; pembuatan dan pengaturan role
-│   ├── class-flashsale-stock.php    ; logika pengurangan & restore stok
-│   ├── class-role-product-filter.php; filter produk & akses berdasarkan role
-│   └── class-abandoned-cart-cron.php; jadwal cron untuk abandoned cart
-└── assets/
-    └── js/timer.js                  ; JS countdown (opsional)
+    ├── class-user-role-manager.php  ; pembuatan dan pengaturan role
+    ├── class-flashsale-stock.php    ; logika pengurangan & restore stok
+    ├── class-role-product-filter.php; filter produk & akses berdasarkan role
+    └── class-abandoned-cart-cron.php; jadwal cron untuk abandoned cart
 ```  
 
 🧠 Cara Kerja Singkat
