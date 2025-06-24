@@ -1,7 +1,8 @@
 📦 Plugin Name: Flashsale Role Control
 🎯 Deskripsi Singkat
 
-Flashsale Role Control adalah plugin WordPress khusus WooCommerce yang memungkinkan kontrol penuh atas visibilitas produk dan manajemen stok saat flash sale berdasarkan peran pengguna seperti User dan Mitra. Plugin ini juga menangani reservasi stok secara otomatis dan pengembalian stok keranjang yang ditinggalkan (abandoned cart).
+Flashsale Role Control merupakan cutom plugin WordPress khusus WooCommerce yang memungkinkan kontrol penuh atas visibilitas produk dan manajemen stok saat flash sale berdasarkan peran pengguna seperti User dan Mitra. Plugin ini juga menangani reservasi stok secara otomatis dan pengembalian stok keranjang yang ditinggalkan (abandoned cart).  
+
 ✅ Fitur Utama
 🔐 Kontrol Produk Berdasarkan Role
 
