@@ -166,6 +166,7 @@ function woo_add_custom_cart_button_style()
             box-shadow: 0 4px 10px rgba(37, 211, 102, 0.4);
         }
 
+
         .single_add_to_cart_button {
             order: 1;
             border-radius: 4px!important;
@@ -456,6 +457,15 @@ function woo_converter_input_fields_conditional()
     $product_id = $product->get_id();
 
     if (get_post_meta($product_id, '_enable_unit_converter', true) !== 'yes') return;
+
+    // Cek apakah produk memiliki variasi
+    if ($product->is_type('variable')) {
+        $available_variations = $product->get_available_variations();
+        if (empty($available_variations)) {
+            echo '<p>Produk ini saat ini tidak tersedia dan tidak dapat dibeli.</p>';
+            return;
+        }
+    }
     ?>
     <div class="woo-converter-wrapper">
         <label for="input_satuan" style="font-weight: bold;">Unit Satuan</label>
@@ -537,6 +547,13 @@ function woo_converter_input_fields_conditional()
                 // Update harga per yard
                 if (priceDisplay) {
                     priceDisplay.textContent = 'Harga per Yard: Rp ' + Math.round(variation.display_price).toLocaleString('id-ID') + '- / Yard (Bruto)';
+                } else {
+                    // Jika harga per yard tidak ada, tampilkan tombol Call Us
+                    const nomor_wa = '<?php echo esc_js($nomor_wa); ?>'; // Ambil nomor WA
+                    const product_title = '<?php echo esc_js($product->get_title()); ?>'; // Ambil judul produk
+                    const message = `Halo, saya ingin menanyakan harga untuk produk: *${product_title}*.`;
+
+                    priceDisplay.innerHTML = '<a href="https://wa.me/' + nomor_wa + '?text=' + encodeURIComponent(message) + '" class="button" style="background-color: #0073aa; color: white; padding: 20px 25px; border-radius: 4px; text-decoration: none;">Call Us</a>';
                 }
             }
 
@@ -604,7 +621,11 @@ function woo_converter_input_fields_conditional()
 
 add_action('woocommerce_after_single_product', function () {
     global $product;
-    if (!is_product() || get_post_meta($product->get_id(), '_enable_unit_converter', true) !== 'yes') return;
+
+    // Pastikan $product didefinisikan
+    if (!is_product() || !$product || get_post_meta($product->get_id(), '_enable_unit_converter', true) !== 'yes') {
+        return;
+    }
 
 ?>
     <script>
@@ -616,8 +637,9 @@ add_action('woocommerce_after_single_product', function () {
             }
         });
     </script>
-    <?php
+<?php
 });
+
 
 // Added variation
 add_filter('woocommerce_add_cart_item_data', function ($data, $product_id, $variation_id) {
@@ -640,32 +662,92 @@ add_filter('woocommerce_add_cart_item_data', function ($data, $product_id, $vari
 }, 10, 3);
 
 
-add_action('woocommerce_variation_options', 'add_image_variation_field', 10, 3);
-function add_image_variation_field($loop, $variation_data, $variation)
+// add_action('woocommerce_variation_options', 'add_image_variation_field', 10, 3);
+// function add_image_variation_field($loop, $variation_data, $variation)
+// {
+//     // Ambil ID gambar yang sudah ada
+//     $image_id = get_post_meta($variation->ID, 'upload_image_id', true);
+
+//     // Tampilkan input untuk ID gambar
+//     woocommerce_wp_hidden_input([
+//         'id' => 'upload_image_id[' . $loop . ']',
+//         'value' => $image_id
+//     ]);
+
+//     // Tampilkan gambar jika ada
+//     if ($image_id) {
+//         echo wp_get_attachment_image($image_id, 'thumbnail');
+//     }
+// }
+
+// add_action('woocommerce_save_product_variation', 'save_image_variation_field', 10, 2);
+// function save_image_variation_field($variation_id, $i)
+// {
+//     if (isset($_POST['upload_image_id'][$i])) {
+//         $image_id = intval($_POST['upload_image_id'][$i]);
+//         update_post_meta($variation_id, 'upload_image_id', $image_id);
+//         error_log("Saved image ID: " . $image_id . " for variation ID: " . $variation_id);
+//     }
+// }
+
+// add_action('woocommerce_save_product_variation', 'save_image_variation_field', 10, 2);
+// function save_image_variation_field($variation_id, $i)
+// {
+//     if (isset($_POST['upload_image_id'])) {
+//         error_log("Upload image IDs: " . print_r($_POST['upload_image_id'], true));
+//         if (isset($_POST['upload_image_id'][$i])) {
+//             $image_id = intval($_POST['upload_image_id'][$i]);
+//             // Jika ID gambar adalah 0, coba ambil ID dari URL
+//             if ($image_id === 0) {
+//                 $image_url = $_POST['upload_image_id'][$i]; // Ambil URL gambar
+//                 $image_id = attachment_url_to_postid($image_url); // Dapatkan ID dari URL
+//             }
+//             update_post_meta($variation_id, 'upload_image_id', $image_id);
+//             error_log("Saved image ID: " . $image_id . " for variation ID: " . $variation_id);
+//         }
+//     }
+// }
+
+
+add_action('admin_footer', 'enqueue_image_uploader_script');
+function enqueue_image_uploader_script()
 {
-    // Ambil ID gambar yang sudah ada
-    $image_id = get_post_meta($variation->ID, 'upload_image_id', true);
-
-    // Tampilkan input untuk ID gambar
-    woocommerce_wp_hidden_input([
-        'id' => 'upload_image_id[' . $loop . ']',
-        'value' => $image_id
-    ]);
-
-    // Tampilkan gambar jika ada
-    if ($image_id) {
-        echo wp_get_attachment_image($image_id, 'thumbnail');
-    }
+?>
+    <script type="text/javascript">
+        jQuery(document).ready(function($) {
+            $('.upload_image_button').click(function(e) {
+                e.preventDefault();
+                var button = $(this);
+                var loop = button.attr('rel'); // Ambil rel untuk loop
+                var uploader = wp.media({
+                    title: 'Pilih Gambar',
+                    button: {
+                        text: 'Pilih'
+                    },
+                    multiple: false
+                }).on('select', function() {
+                    var attachment = uploader.state().get('selection').first().toJSON();
+                    $('input[name="upload_image_id[' + loop + ']"]').val(attachment.id); // Update input dengan ID
+                    button.find('img').attr('src', attachment.sizes.thumbnail.url); // Update gambar
+                }).open();
+            });
+        });
+    </script>
+    <?php
 }
 
 add_action('woocommerce_save_product_variation', 'save_image_variation_field', 10, 2);
 function save_image_variation_field($variation_id, $i)
 {
-    // Simpan ID gambar
-    if (isset($_POST['upload_image_id'][$i])) {
-        update_post_meta($variation_id, 'upload_image_id', intval($_POST['upload_image_id'][$i]));
+    if (isset($_POST['upload_image_id'])) {
+        if (isset($_POST['upload_image_id'][$i])) {
+            $image_id = intval($_POST['upload_image_id'][$i]);
+            update_post_meta($variation_id, 'upload_image_id', $image_id);
+            error_log("Saved image ID: " . $image_id . " for variation ID: " . $variation_id);
+        }
     }
 }
+
 
 
 add_filter('woocommerce_cart_item_display', function ($item_name, $cart_item, $cart_item_key) {
@@ -716,13 +798,17 @@ function custom_variable_price_per_yard_display($price_html, $product)
     foreach ($available_variations as $variation) {
         $vid = $variation['variation_id'];
         $custom_price = get_post_meta($vid, '_price_per_yard', true);
-        if (is_numeric($custom_price)) {
+
+        // Debugging
+        error_log("Disini debug harga: " . $custom_price);
+
+        if (is_numeric($custom_price) && $custom_price > 0) {
             $prices[] = floatval($custom_price);
         }
     }
 
     if (empty($prices)) {
-        return $price_html;
+        return '<p class="price">Harga tidak tersedia</p>'; // Tampilkan pesan jika tidak ada harga
     }
 
     $min = min($prices);
@@ -734,6 +820,7 @@ function custom_variable_price_per_yard_display($price_html, $product)
         return '<p class="price">Harga per yard: ' . wc_price($min) . ' – ' . wc_price($max) . '</p>';
     }
 }
+
 
 // ====== TAMBAH FIELD HARGA PER YARD DI VARIASI PRODUK ======
 add_action('woocommerce_variation_options_pricing', 'woo_add_price_per_yard_variation_field', 10, 3);
@@ -809,14 +896,17 @@ function limit_default_variation_checkbox_selection()
     }
 }
 
+// Tambahkan log untuk memeriksa variasi yang diambil
 add_filter('woocommerce_available_variation', 'woo_add_price_per_yard_to_variation_json');
 function woo_add_price_per_yard_to_variation_json($variation_data)
 {
     $variation_id = $variation_data['variation_id'];
     $price_per_yard = get_post_meta($variation_id, '_price_per_yard', true);
+    error_log("Variation ID: $variation_id, Price per Yard: $price_per_yard"); // Debug log
     $variation_data['price_per_yard'] = $price_per_yard;
     return $variation_data;
 }
+
 
 add_filter('woocommerce_get_price_html', 'custom_price_per_yard_output', 10, 2);
 function custom_price_per_yard_output($price, $product)
@@ -911,3 +1001,199 @@ function custom_update_cart_quantity()
 
     wp_send_json_success('Berhasil update cart');
 }
+
+// Menambahkan checkbox untuk menyembunyikan harga produk
+add_action('woocommerce_product_options_general_product_data', 'woo_add_hide_price_field');
+function woo_add_hide_price_field()
+{
+    echo '<div class="options_group">';
+
+    woocommerce_wp_checkbox([
+        'id' => '_hide_product_price',
+        'label' => __('Sembunyikan Harga Produk?', 'woocommerce'),
+        'description' => __('Centang untuk menyembunyikan harga produk di halaman produk.', 'woocommerce'),
+    ]);
+
+    echo '</div>';
+}
+
+// Menyimpan status checkbox
+add_action('woocommerce_process_product_meta', 'woo_save_hide_price_field');
+function woo_save_hide_price_field($post_id)
+{
+    $hide_price = isset($_POST['_hide_product_price']) ? 'yes' : 'no';
+    update_post_meta($post_id, '_hide_product_price', $hide_price);
+}
+
+// Menyembunyikan harga produk
+add_filter('woocommerce_get_price_html', 'custom_hide_product_price', 10, 2);
+function custom_hide_product_price($price, $product)
+{
+    if (get_post_meta($product->get_id(), '_hide_product_price', true) === 'yes') {
+        return '<span class="hidden-price">Harga disembunyikan</span>';
+    }
+    return $price;
+}
+
+// Mengubah status produk menjadi tidak dapat dibeli jika harga disembunyikan
+add_filter('woocommerce_is_purchasable', 'custom_hide_add_to_cart', 10, 2);
+function custom_hide_add_to_cart($purchasable, $product)
+{
+    if (get_post_meta($product->get_id(), '_hide_product_price', true) === 'yes') {
+        return false; // Produk tidak dapat dibeli
+    }
+    return $purchasable;
+}
+
+// Menyembunyikan harga produk dan tombol pembelian
+// add_action('template_redirect', 'custom_conditionally_remove_add_to_cart_price');
+// function custom_conditionally_remove_add_to_cart_price()
+// {
+//     if (!is_product()) return;
+
+//     global $post;
+//     $product_id = $post->ID;
+
+//     if (get_post_meta($product_id, '_hide_product_price', true) === 'yes') {
+//         // Hapus elemen harga & tombol add to cart
+//         remove_action('woocommerce_single_product_summary', 'woocommerce_template_single_price', 10);
+//         remove_action('woocommerce_single_product_summary', 'woocommerce_template_single_add_to_cart', 30);
+
+//         // Tambahkan tombol WhatsApp
+//         add_action('woocommerce_single_product_summary', 'add_call_to_us_button', 30);
+//     }
+// }
+
+
+// Menambahkan tombol Call To Us
+function add_call_to_us_button()
+{
+    global $product;
+
+    // Ambil nomor WhatsApp dari post type whatsapp_admin
+    $whatsapp_number = get_whatsapp_number();
+    if ($whatsapp_number) {
+        // Format nomor WhatsApp
+        $formatted_number = preg_replace('/^0/', '62', $whatsapp_number);
+        $message = urlencode('Saya ingin menanyakan harga untuk produk: ' . $product->get_name());
+        $whatsapp_link = 'https://wa.me/' . $formatted_number . '?text=' . $message;
+
+        echo '<a href="' . esc_url($whatsapp_link) . '" class="button call-to-us" target="_blank">Call To Us</a>';
+    }
+}
+
+// Fungsi untuk mengambil nomor WhatsApp dari post type whatsapp_admin
+function get_whatsapp_number()
+{
+    $args = [
+        'post_type' => 'whatsapp_admin',
+        'posts_per_page' => 1,
+    ];
+    $query = new WP_Query($args);
+    if ($query->have_posts()) {
+        while ($query->have_posts()) {
+            $query->the_post();
+            return get_post_meta(get_the_ID(), 'nomor_whatsapp_admin', true);
+        }
+        wp_reset_postdata();
+    }
+    return false; // Jika tidak ada nomor yang ditemukan
+}
+
+add_action('woocommerce_single_product_summary', 'custom_insert_call_to_us_button_php', 80);
+function custom_insert_call_to_us_button_php()
+{
+    global $product;
+    if (
+        is_product() &&
+        is_a($product, 'WC_Product') &&
+        get_post_meta($product->get_id(), '_hide_product_price', true) === 'yes'
+    ) {
+        $whatsapp_number = get_whatsapp_number();
+        if (!$whatsapp_number) return;
+
+        $formatted_number = preg_replace('/^0/', '62', $whatsapp_number);
+        $message = urlencode('Saya ingin menanyakan harga untuk produk: ' . $product->get_name());
+        $whatsapp_link = 'https://wa.me/' . $formatted_number . '?text=' . $message;
+
+        echo '<a href="' . esc_url($whatsapp_link) . '" class="button call-to-us style="background-color: #25D366; color: white; padding: 20px 25px; border-radius: 12px; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;" target="_blank">
+            <i class="fab fa-whatsapp" style="font-size:18px; color:white;"></i>
+            &nbsp;Call To Us
+        </a>';
+    }
+}
+
+add_action('wp_footer', function () {
+    if (!is_product()) return;
+
+    global $product;
+    if (get_post_meta($product->get_id(), '_hide_product_price', true) !== 'yes') return;
+?>
+    <script>
+        jQuery(function($) {
+            $('.price, .woocommerce-variation-price, #price-per-yard-display').hide();
+            $('.woo-converter-wrapper, .woo-converter-fields').hide();
+            $('.single_add_to_cart_button, .button-buy-now, .beli-langsung-wa').hide();
+            $('form.cart .quantity').hide();
+            // Jangan sembunyikan product meta, tabs, reviews
+        });
+    </script>
+<?php
+});
+
+
+add_action('wp_head', function () {
+    if (!is_product()) return;
+
+    $product_id = get_queried_object_id();
+    if (!$product_id) return;
+
+    if (get_post_meta($product_id, '_hide_product_price', true) === 'yes') {
+        echo '<style>
+            /* Sembunyikan harga dan tombol beli */
+            .price,
+            .woocommerce-variation-price,
+            #price-per-yard-display,
+            .woo-converter-wrapper,
+            .woo-converter-fields,
+            .single_add_to_cart_button,
+            .button-buy-now,
+            .beli-langsung-wa,
+            form.cart .quantity {
+                display: none !important;
+            }
+
+            /* Tampilkan product meta dan tabs */
+            .product_meta,
+            .product-share,
+            .woocommerce-tabs,
+            .wc-tabs-wrapper,
+            .woocommerce-tabs .panel,
+            .woocommerce-product-details__short-description,
+            #reviews,
+            #comments,
+            .woocommerce-Reviews {
+                display: block !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+            }
+            .product-share {
+                margin-bottom: 2rem!important;
+            }
+            .call-to-us {
+                background: #25D366 !important;
+                color: white !important;
+                border: none !important;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                margin-top: 1rem;
+            }
+
+            .call-to-us:hover {
+                background: #1ebe5d !important;
+                box-shadow: 0 4px 10px rgba(37, 211, 102, 0.4);
+            }
+        </style>';
+    }
+});
