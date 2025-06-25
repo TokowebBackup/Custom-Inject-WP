@@ -1114,19 +1114,58 @@ function custom_insert_call_to_us_button_php()
         if (!$whatsapp_number) return;
 
         $formatted_number = preg_replace('/^0/', '62', $whatsapp_number);
-        $product_name = $product->get_name();
-        $site_name = get_bloginfo('name');
+        $product_name     = $product->get_name();
+        $product_sku      = $product->get_sku();
+        $product_id       = $product->get_id();
+        $product_stock = $product->get_stock_quantity();
+        if ($product_stock === null || $product_stock === '') {
+            $product_stock = $product->is_in_stock() ? 'Tersedia' : 'Kosong';
+        }
+        $product_link     = get_permalink($product_id);
+        $site_name        = get_bloginfo('name');
 
         echo '
         <a href="#" id="call-to-us-btn" 
-           class="button call-to-us" 
+           class="button call-to-us-button" 
            data-wa="' . esc_attr($formatted_number) . '" 
            data-product="' . esc_attr($product_name) . '" 
+           data-sku="' . esc_attr($product_sku) . '"
+           data-stock="' . esc_attr($product_stock) . '"
+           data-id="' . esc_attr($product_id) . '"
+           data-link="' . esc_url($product_link) . '"
            data-site="' . esc_attr($site_name) . '"
-           style="background-color: #25D366; color: white; padding: 20px 25px; border-radius: 10px; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;" target="_blank">
-           <i class="fab fa-whatsapp" style="font-size:18px; color:white;"></i>
+           target="_blank">
+           <i class="fab fa-whatsapp"></i>
            &nbsp;Call To Us
         </a>
+
+        <style>
+        .call-to-us-button {
+            background-color: #25D366;
+            color: white;
+            padding: 14px 24px;
+            border-radius: 10px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 1rem;
+            text-align: center!important;
+        }
+        .call-to-us-button:hover {
+            background-color: white;
+            color: #25D366;
+            border: 2px solid #25D366;
+        }
+        .call-to-us-button i {
+            font-size: 18px;
+        }
+        </style>
 
         <script>
         document.addEventListener("DOMContentLoaded", function () {
@@ -1136,11 +1175,15 @@ function custom_insert_call_to_us_button_php()
             btn.addEventListener("click", function (e) {
                 e.preventDefault();
 
-                const phone = btn.getAttribute("data-wa");
-                const productName = btn.getAttribute("data-product");
-                const siteName = btn.getAttribute("data-site");
+                const phone        = btn.getAttribute("data-wa");
+                const productName  = btn.getAttribute("data-product");
+                const productSKU   = btn.getAttribute("data-sku");
+                const productStock = btn.getAttribute("data-stock");
+                const productID    = btn.getAttribute("data-id");
+                const productLink  = btn.getAttribute("data-link");
+                const siteName     = btn.getAttribute("data-site");
 
-                // Ambil variasi warna dari <li class="selected">
+                // Ambil variasi warna dari swatch <li.selected>
                 let colorText = "Tanpa variasi";
                 const selectedColor = document.querySelector(".st-swatch-preview li.selected span[data-name]");
                 if (selectedColor) {
@@ -1151,6 +1194,10 @@ function custom_insert_call_to_us_button_php()
                 const message = 
                     `Halo Admin ${siteName} 👋
                     Saya tertarik dengan produk *${productName}*.
+                    SKU: ${productSKU}
+                    ID Produk: ${productID}
+                    Stok Tersedia: ${productStock}
+                    Link Produk: ${productLink}
                     Pilihan saya:
                     ${colorText}
                     Mohon infonya lebih lanjut ya.`;
@@ -1162,7 +1209,6 @@ function custom_insert_call_to_us_button_php()
         </script>';
     }
 }
-
 
 add_action('wp_footer', function () {
     if (!is_product()) return;
@@ -1221,21 +1267,7 @@ add_action('wp_head', function () {
             .product-share {
                 margin-bottom: 2rem!important;
             }
-            .call-to-us {
-                background: #25D366 !important;
-                color: white !important;
-                border: none !important;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                margin-top: 1rem;
-                width: 100%;
-            }
-
-            .call-to-us:hover {
-                background: #1ebe5d !important;
-                box-shadow: 0 4px 10px rgba(37, 211, 102, 0.4);
-            }
+            
         </style>';
     }
 });
