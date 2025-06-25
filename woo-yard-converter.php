@@ -450,6 +450,28 @@ function woo_register_yard_converter_styles()
     wp_add_inline_style('woo-yard-converter', $css);
 }
 
+function load_sweetalert_in_head()
+{
+    if (is_product()) {
+        echo '
+        <!-- SweetAlert2 CDN -->
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+        ';
+    }
+}
+
+add_action('wp_head', 'load_sweetalert_in_head');
+
+function load_sweetalert_css_in_head()
+{
+    if (is_product()) {
+        echo '
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
+        ';
+    }
+}
+add_action('wp_head', 'load_sweetalert_css_in_head');
+
 add_action('woocommerce_before_add_to_cart_quantity', 'woo_converter_input_fields_conditional', 5);
 function woo_converter_input_fields_conditional()
 {
@@ -482,6 +504,9 @@ function woo_converter_input_fields_conditional()
                         <input type="number" step="0.01" min="0.1" id="input_satuan" name="input_satuan" value="1" />
                         <div id="unit_label" style="background: #1e1f37; color: #fff; padding: 8px 12px;">Yard</div>
                     </div>
+                </div>
+                <div class="woo-flex-row">
+                    <small id="yard-max-alert" style="display: none; color: red; font-size: 12px;">Maksimal order 60 yard.</small>
                 </div>
             </div>
             <!-- Quantity akan otomatis berada di sebelah kanan karena .quantity ada di form.cart -->
@@ -580,7 +605,37 @@ function woo_converter_input_fields_conditional()
             };
 
             // Event listeners
-            meterInput.addEventListener('input', updateQty);
+            // meterInput.addEventListener('input', updateQty);
+            meterInput.addEventListener('input', function() {
+                const maxYard = 60;
+                const value = parseFloat(meterInput.value) || 0;
+                const unit = getSelectedUnit();
+                let yardVal = unit === 'meter' ? convertToYard(value) : value;
+
+                console.log(yardVal);
+
+                const alertBox = document.getElementById('yard-max-alert');
+
+                if (yardVal > maxYard) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Maksimal Order 60 Yard',
+                        text: 'Jumlah yard yang Anda masukkan melebihi batas maksimal (60 yard).',
+                        confirmButtonColor: '#25D366',
+                    });
+
+                    meterInput.value = unit === 'meter' ? (maxYard * 0.9144).toFixed(2) : maxYard;
+                    yardVal = maxYard;
+                    updateQty();
+                }
+
+                // Tampilkan/hilangkan alert teks biasa
+                if (alertBox) {
+                    alertBox.style.display = yardVal >= maxYard ? 'block' : 'none';
+                }
+
+                updateQty();
+            });
             unitRadios.forEach(radio => radio.addEventListener('change', updateQty));
 
             // Update harga saat variasi ditemukan
