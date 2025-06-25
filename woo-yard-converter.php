@@ -1104,6 +1104,7 @@ add_action('woocommerce_single_product_summary', 'custom_insert_call_to_us_butto
 function custom_insert_call_to_us_button_php()
 {
     global $product;
+
     if (
         is_product() &&
         is_a($product, 'WC_Product') &&
@@ -1113,15 +1114,55 @@ function custom_insert_call_to_us_button_php()
         if (!$whatsapp_number) return;
 
         $formatted_number = preg_replace('/^0/', '62', $whatsapp_number);
-        $message = urlencode('Saya ingin menanyakan harga untuk produk: ' . $product->get_name());
-        $whatsapp_link = 'https://wa.me/' . $formatted_number . '?text=' . $message;
+        $product_name = $product->get_name();
+        $site_name = get_bloginfo('name');
 
-        echo '<a href="' . esc_url($whatsapp_link) . '" class="button call-to-us style="background-color: #25D366; color: white; padding: 20px 25px; border-radius: 12px; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;" target="_blank">
-            <i class="fab fa-whatsapp" style="font-size:18px; color:white;"></i>
-            &nbsp;Call To Us
-        </a>';
+        echo '
+        <a href="#" id="call-to-us-btn" 
+           class="button call-to-us" 
+           data-wa="' . esc_attr($formatted_number) . '" 
+           data-product="' . esc_attr($product_name) . '" 
+           data-site="' . esc_attr($site_name) . '"
+           style="background-color: #25D366; color: white; padding: 20px 25px; border-radius: 10px; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;" target="_blank">
+           <i class="fab fa-whatsapp" style="font-size:18px; color:white;"></i>
+           &nbsp;Call To Us
+        </a>
+
+        <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const btn = document.getElementById("call-to-us-btn");
+            if (!btn) return;
+
+            btn.addEventListener("click", function (e) {
+                e.preventDefault();
+
+                const phone = btn.getAttribute("data-wa");
+                const productName = btn.getAttribute("data-product");
+                const siteName = btn.getAttribute("data-site");
+
+                // Ambil variasi warna dari <li class="selected">
+                let colorText = "Tanpa variasi";
+                const selectedColor = document.querySelector(".st-swatch-preview li.selected span[data-name]");
+                if (selectedColor) {
+                    const colorName = selectedColor.getAttribute("data-name");
+                    colorText = "Warna: " + colorName;
+                }
+
+                const message = 
+                    `Halo Admin ${siteName} 👋
+                    Saya tertarik dengan produk *${productName}*.
+                    Pilihan saya:
+                    ${colorText}
+                    Mohon infonya lebih lanjut ya.`;
+
+                const waLink = "https://wa.me/" + phone + "?text=" + encodeURIComponent(message);
+                window.open(waLink, "_blank");
+            });
+        });
+        </script>';
     }
 }
+
 
 add_action('wp_footer', function () {
     if (!is_product()) return;
@@ -1188,6 +1229,7 @@ add_action('wp_head', function () {
                 align-items: center;
                 justify-content: center;
                 margin-top: 1rem;
+                width: 100%;
             }
 
             .call-to-us:hover {
