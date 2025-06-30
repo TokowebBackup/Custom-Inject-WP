@@ -67,7 +67,7 @@ class Tokoweb_Elementor_Typing_Text extends Widget_Base
                 'label' => __('Warna Teks', 'tokoweb'),
                 'type' => Controls_Manager::COLOR,
                 'selectors' => [
-                    '{{WRAPPER}} .tokoweb-typing' => 'color: {{VALUE}}',
+                    '{{WRAPPER}} .tokoweb-typing, {{WRAPPER}} .tokoweb-typing + .typed-cursor' => 'color: {{VALUE}};',
                 ],
             ]
         );
@@ -77,7 +77,7 @@ class Tokoweb_Elementor_Typing_Text extends Widget_Base
             [
                 'name' => 'typography',
                 'label' => __('Tipografi', 'tokoweb'),
-                'selector' => '{{WRAPPER}} .tokoweb-typing',
+                'selector' => '{{WRAPPER}} .tokoweb-typing, {{WRAPPER}} .tokoweb-typing + .typed-cursor',
             ]
         );
 
