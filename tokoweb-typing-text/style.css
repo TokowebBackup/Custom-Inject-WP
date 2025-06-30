@@ -1,0 +1,19 @@
+.umaha-typing-wrapper {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    font-size: 2rem;
+    /* color: #003865; */
+    /* Biru tua UMAHA */
+    text-align: center;
+    margin: 20px 0;
+}
+
+.tokoweb-typing-wrapper .tokoweb-typing {
+    display: inline-block;
+}
+
+@media screen and (max-width: 768px) {
+    .umaha-typing-wrapper {
+        font-size: 1.4rem;
+    }
+}
