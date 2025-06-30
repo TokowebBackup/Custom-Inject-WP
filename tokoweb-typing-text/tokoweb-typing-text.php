@@ -4,7 +4,7 @@
  * Plugin Name: Tokoweb Typing Text
  * Description: Menambahkan efek teks ketik otomatis. Gunakan shortcode [tokoweb_typing title="Judul Typing Text"].
  * Version: 1.0
- * Author: Puji Ermanto <pujiermanto@gmail.com>
+ * Author: Puji Ermanto <pujiermanto@gmail.com> | AKA Sumpena | AKA Deden Iynyuuss
  */
 
 // Enqueue script dan CSS
