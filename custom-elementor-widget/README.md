@@ -2,7 +2,7 @@
 
 **Versi:** 1.2.0  
 **Author:** Puji Ermanto (pujiermanto@gmail.com)  
-**Website:** https://pujiermanto-blog.vercel.app
+**Website:** https://pujiermanto-blog.vercel.app/blog
 
 ---
 
