@@ -113,7 +113,7 @@ jQuery(document).ready(function($) {
 - jQuery (otomatis tersedia di WordPress)
 
 #### 👨‍💻 Author
-> Puji Ermanto a.k.a Maman Subandi
+> Puji Ermanto a.k.a Vickerness aka Dunkelheit
 📧 pujiermanto@gmail.com
 
 ### 📝 License
