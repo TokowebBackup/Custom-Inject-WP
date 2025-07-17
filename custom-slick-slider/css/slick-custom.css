@@ -82,7 +82,7 @@
 }
 
 .slider-content .btn {
-    background-color: #007bff;
+    background-color: #fe3406;
     color: #fff;
     padding: 14px 30px;
     border-radius: 8px;
@@ -118,14 +118,14 @@
 #home-slider-6 .slick-dots li button {
     width: 10px;
     height: 10px;
-    background: #0163d2;
+    background: #fe3406;
     border-radius: 30px;
     transition: all 0.3s ease;
     padding: 0;
 }
 
 #home-slider-6 .slick-dots li.slick-active button {
-    background: #007bff;
+    background: #fe3406;
     width: 30px;
     transform: scale(1.3);
 }
