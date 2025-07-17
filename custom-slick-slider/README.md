@@ -1,6 +1,7 @@
 # Custom Slick Slider for WordPress + Elementor
 
 Plugin ini adalah slider kustom berbasis **Slick Carousel** yang bisa digunakan langsung di **Elementor** sebagai widget.
+![Screenshot 2025-07-08 005949](https://github.com/user-attachments/assets/fba4d767-0e01-4aba-963d-0fc1792c98c5)
 
 ---
 
@@ -118,16 +119,6 @@ jQuery(document).ready(function($) {
 
 ### 📝 License
 GPLv2 or later
-
-
----
-
-Kalau kamu ingin, saya bisa bantu:
-- Buatkan versi ZIP plugin siap upload
-- Tambahkan screenshot atau badge seperti plugin WordPress asli
-
-Mau?
---- 
 
 
 
