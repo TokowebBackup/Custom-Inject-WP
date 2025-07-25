@@ -58,8 +58,8 @@ function fwc_settings_page()
 
 // Enqueue assets
 add_action('wp_enqueue_scripts', function () {
-    wp_enqueue_style('fwc-style', plugin_dir_url(__FILE__) . 'style.css');
-    wp_enqueue_script('fwc-script', plugin_dir_url(__FILE__) . 'script.js', [], false, true);
+    wp_enqueue_style('fwc-style', plugin_dir_url(__FILE__) . 'floating-whatsapp-style.css');
+    wp_enqueue_script('fwc-script', plugin_dir_url(__FILE__) . 'floating-whatsapp-script.js', [], false, true);
 });
 
 // Output button HTML
@@ -82,13 +82,15 @@ add_action('wp_footer', function () {
             </div>
             <div class="fwc-body">
                 <p>How can I help you?</p>
-                <input type="text" id="fwc-message" value="<?php echo urldecode($message); ?>">
-                <a href="https://wa.me/<?php echo $number; ?>?text=<?php echo $message; ?>"
-                    target="_blank"
-                    class="fwc-send"
-                    onclick="this.href='https://wa.me/<?php echo $number; ?>?text=' + encodeURIComponent(document.getElementById('fwc-message').value)">
-                    <i class="fas fa-paper-plane"></i>
-                </a>
+                <div class="fwc-message-row">
+                    <textarea id="fwc-message" rows="3"><?php echo urldecode($message); ?></textarea>
+                    <a href="https://wa.me/<?php echo $number; ?>?text=<?php echo $message; ?>"
+                        target="_blank"
+                        class="fwc-send"
+                        onclick="this.href='https://wa.me/<?php echo $number; ?>?text=' + encodeURIComponent(document.getElementById('fwc-message').value)">
+                        <i class="fas fa-paper-plane"></i>
+                    </a>
+                </div>
             </div>
         </div>
         <div class="fwc-icon">
