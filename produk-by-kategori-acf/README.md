@@ -1,4 +1,5 @@
 # Produk by Kategori ACF – Elementor Widget
+<img width="1910" height="913" alt="Screenshot 2025-07-29 135859" src="https://github.com/user-attachments/assets/22910e36-bfd9-4fea-8827-4fcb73bf622a" />
 
 **Versi:** 1.2.0  
 **Author:** Puji Ermanto | AKA Maman Salajami | AKA Deden Inyuuus | AKA TATANG
@@ -29,11 +30,26 @@ Widget Elementor kustom yang menampilkan produk WooCommerce berdasarkan:
 
 ## Instalasi
 
-1. Upload folder plugin ke dalam `/wp-content/plugins/`.
-2. Aktifkan plugin dari **Dashboard → Plugins**.
-3. Pastikan Elementor dan WooCommerce sudah aktif.
-4. Tambahkan widget "Produk by Kategori ACF" di dalam editor Elementor.
-5. Pilih kategori atau gunakan opsi "Gunakan Judul Post Saat Ini".
+### Opsi 1 – Manual Upload Folder
+
+1. Ekstrak folder plugin ini.
+2. Upload seluruh folder ke dalam direktori:  
+   `/wp-content/plugins/`.
+3. Aktifkan plugin dari **Dashboard → Plugins**.
+4. Pastikan Elementor dan WooCommerce sudah aktif.
+5. Tambahkan widget "Produk by Kategori ACF" di dalam editor Elementor.
+6. Pilih kategori atau gunakan opsi "Gunakan Judul Post Saat Ini".
+
+### Opsi 2 – Upload File .zip
+
+1. Compress folder plugin menjadi file `.zip`.
+2. Di Dashboard WordPress, buka **Plugins → Add New → Upload Plugin**.
+3. Pilih file ZIP dan klik **Install Now**.
+4. Aktifkan plugin setelah selesai.
+5. Pastikan Elementor dan WooCommerce sudah aktif.
+6. Gunakan widget "Produk by Kategori ACF" di dalam editor Elementor.
+
+
 
 ---
 
