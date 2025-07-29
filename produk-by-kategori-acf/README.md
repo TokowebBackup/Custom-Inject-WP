@@ -2,9 +2,9 @@
 <img width="1910" height="913" alt="Screenshot 2025-07-29 135859" src="https://github.com/user-attachments/assets/22910e36-bfd9-4fea-8827-4fcb73bf622a" />
 
 **Versi:** 1.2.0  
-**Author:** Puji Ermanto | AKA Maman Salajami | AKA Deden Inyuuus | AKA TATANG
+**Author:** Puji Ermanto | AKA Maman Salajami | AKA Deden Inyuuus | AKA TATANG koleganya iwan fals
 **Email:** pujiermanto@gmail.com  
-**Portfolio:** [https://pujiermanto-portfolio.vercel.app](https://pujiermanto-portfolio.vercel.app)
+**Portfolio:** [https://pujiermanto-blog.vercel.app](https://pujiermanto-blog.vercel.app)
 
 ## Deskripsi
 
@@ -48,8 +48,6 @@ Widget Elementor kustom yang menampilkan produk WooCommerce berdasarkan:
 4. Aktifkan plugin setelah selesai.
 5. Pastikan Elementor dan WooCommerce sudah aktif.
 6. Gunakan widget "Produk by Kategori ACF" di dalam editor Elementor.
-
-
 
 ---
 
@@ -101,4 +99,4 @@ _Tampilan widget di Elementor dengan pilihan kategori_
 ## Credits
 
 Puji Ermanto  
-[Portfolio Developer](https://pujiermanto-portfolio.vercel.app)  
+[Portfolio Developer](https://pujiermanto-blog.vercel.app)  
