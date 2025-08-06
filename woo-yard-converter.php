@@ -269,65 +269,65 @@ function woo_add_beli_langsung_button()
                     wrapper.appendChild(waBtn);
                 }
 
-                waBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
+                document.addEventListener('click', function(e) {
+                    if (e.target.closest('.beli-langsung-wa')) {
+                        e.preventDefault();
 
-                    const unitInput = document.querySelector('input[name="unit_satuan"]:checked');
-                    const unit = unitInput ? parseFloat(unitInput.value) || 1 : 1;
-                    const unitSelected = getSelectedUnit();
+                        const unitInput = document.querySelector('input[name="unit_satuan"]:checked');
+                        const unit = unitInput ? parseFloat(unitInput.value) || 1 : 1;
+                        const unitSelected = getSelectedUnit();
+                        const qty = localStorage.getItem('yard_value') ? localStorage.getItem('yard_value') : 1;
 
-                    const qtyInput = document.querySelector('input[name="quantity"]');
-                    const qty = qtyInput ? parseFloat(qtyInput.value) || 1 : 1;
+                        const title = document.querySelector('h1.product_title')?.textContent.trim() || 'Produk';
+                        const url = window.location.href;
 
-                    const title = document.querySelector('h1.product_title')?.textContent.trim() || 'Produk';
-                    const url = window.location.href;
+                        const variationID = parseInt(jQuery('input[name="variation_id"]').val());
+                        const variationData = jQuery('form.variations_form').data('product_variations');
+                        const variation = variationData?.find(v => v.variation_id === variationID);
 
-                    const variationID = parseInt(jQuery('input[name="variation_id"]').val());
-                    const variationData = jQuery('form.variations_form').data('product_variations');
-                    const variation = variationData?.find(v => v.variation_id === variationID);
-
-                    let hargaRaw = 0;
-                    let gambar = '-';
-                    let warna = '-';
-                    for (const [key, value] of Object.entries(variation.attributes)) {
-                        if (key.includes('attribute_pa_warna')) {
-                            warna = value.replace(/-/g, ' ').toUpperCase();
-                            break;
+                        let hargaRaw = 0;
+                        let gambar = '-';
+                        let warna = '-';
+                        for (const [key, value] of Object.entries(variation.attributes)) {
+                            if (key.includes('attribute_pa_warna')) {
+                                warna = value.replace(/-/g, ' ').toUpperCase();
+                                break;
+                            }
                         }
+
+                        if (variation) {
+                            hargaRaw = variation.display_price || 0;
+
+                            // Ambil warna dari attributes
+                            const attrWarna = Object.values(variation.attributes).find(v => v.includes('warna'));
+                            if (attrWarna) {
+                                warna = attrWarna.replace(/-/g, ' ').toUpperCase();
+                            }
+
+                            // Ambil gambar dari object variation.image.src
+                            if (variation.image && variation.image.src) {
+                                gambar = variation.image.src;
+                            }
+                        }
+
+                        const total = hargaRaw * unit;
+                        const hargaFormat = new Intl.NumberFormat('id-ID').format(hargaRaw);
+                        const totalFormat = new Intl.NumberFormat('id-ID').format(total);
+
+                        const pesan = `Halo Admin <?php echo $site_name; ?>, saya tertarik untuk membeli produk berikut:\n\n` +
+                            `📌 *Nama Produk:* ${title}\n` +
+                            `📏 *Jumlah:* ${qty} ${unitSelected}\n` +
+                            `🎨 *Warna:* ${warna}\n` +
+                            `🖼️ *Gambar:* ${gambar}\n` +
+                            `💸 *Harga per ${unit} ${unitSelected}:* Rp${hargaFormat}\n` +
+                            `💳 *Total Bayar:* Rp${totalFormat}\n\n` +
+                            `🔗 *Link Produk:* ${url}\n\n` +
+                            `Mohon konfirmasinya ya, terima kasih 🙏`;
+
+                        const nomor = waBtn.getAttribute('data-wa');
+                        const waLink = `https://wa.me/${nomor}?text=${encodeURIComponent(pesan)}`;
+                        window.open(waLink, '_blank');
                     }
-
-                    if (variation) {
-                        hargaRaw = variation.display_price || 0;
-
-                        // Ambil warna dari attributes
-                        const attrWarna = Object.values(variation.attributes).find(v => v.includes('warna'));
-                        if (attrWarna) {
-                            warna = attrWarna.replace(/-/g, ' ').toUpperCase();
-                        }
-
-                        // Ambil gambar dari object variation.image.src
-                        if (variation.image && variation.image.src) {
-                            gambar = variation.image.src;
-                        }
-                    }
-
-                    const total = hargaRaw * unit;
-                    const hargaFormat = new Intl.NumberFormat('id-ID').format(hargaRaw);
-                    const totalFormat = new Intl.NumberFormat('id-ID').format(total);
-
-                    const pesan = `Halo Admin <?php echo $site_name; ?>, saya tertarik untuk membeli produk berikut:\n\n` +
-                        `📌 *Nama Produk:* ${title}\n` +
-                        `📏 *Jumlah:* ${qty} ${unitSelected}\n` +
-                        `🎨 *Warna:* ${warna}\n` +
-                        `🖼️ *Gambar:* ${gambar}\n` +
-                        `💸 *Harga per ${unit} ${unitSelected}:* Rp${hargaFormat}\n` +
-                        `💳 *Total Bayar:* Rp${totalFormat}\n\n` +
-                        `🔗 *Link Produk:* ${url}\n\n` +
-                        `Mohon konfirmasinya ya, terima kasih 🙏`;
-
-                    const nomor = waBtn.getAttribute('data-wa');
-                    const waLink = `https://wa.me/${nomor}?text=${encodeURIComponent(pesan)}`;
-                    window.open(waLink, '_blank');
                 });
             });
         </script>
@@ -608,13 +608,12 @@ function woo_converter_input_fields_conditional()
             // meterInput.addEventListener('input', updateQty);
             meterInput.addEventListener('input', function() {
                 const maxYard = 60;
-                const value = parseFloat(meterInput.value) || 0;
+
+                let value = parseFloat(meterInput.value);
+                if (isNaN(value)) return;
+
                 const unit = getSelectedUnit();
                 let yardVal = unit === 'meter' ? convertToYard(value) : value;
-
-                console.log(yardVal);
-
-                const alertBox = document.getElementById('yard-max-alert');
 
                 if (yardVal > maxYard) {
                     Swal.fire({
@@ -624,18 +623,33 @@ function woo_converter_input_fields_conditional()
                         confirmButtonColor: '#25D366',
                     });
 
-                    meterInput.value = unit === 'meter' ? (maxYard * 0.9144).toFixed(2) : maxYard;
+                    meterInput.value = unit === 'meter' ?
+                        (maxYard * 0.9144).toFixed(2) :
+                        maxYard;
                     yardVal = maxYard;
-                    updateQty();
                 }
 
-                // Tampilkan/hilangkan alert teks biasa
+                const alertBox = document.getElementById('yard-max-alert');
                 if (alertBox) {
                     alertBox.style.display = yardVal >= maxYard ? 'block' : 'none';
                 }
 
+                if (!isNaN(yardVal)) {
+                    localStorage.setItem('yard_value', yardVal);
+                }
+
                 updateQty();
             });
+
+            meterInput.addEventListener('blur', function() {
+                const val = parseFloat(meterInput.value);
+                if (!isNaN(val)) {
+                    // hanya tambahkan .00 jika angka bulat
+                    meterInput.value = Number.isInteger(val) ? val.toFixed(2) : val;
+                }
+            });
+
+
             unitRadios.forEach(radio => radio.addEventListener('change', updateQty));
 
             // Update harga saat variasi ditemukan
@@ -1030,7 +1044,7 @@ function woo_autoselect_default_variation()
             });
         });
     </script>
-<?php
+    <?php
 }
 
 
@@ -1172,12 +1186,12 @@ function custom_insert_call_to_us_button_php()
         $product_name     = $product->get_name();
         $product_sku      = $product->get_sku();
         $product_id       = $product->get_id();
-        $product_stock = $product->get_stock_quantity();
+        $product_stock    = $product->get_stock_quantity();
         if ($product_stock === null || $product_stock === '') {
             $product_stock = $product->is_in_stock() ? 'Tersedia' : 'Kosong';
         }
-        $product_link     = get_permalink($product_id);
-        $site_name        = get_bloginfo('name');
+        $product_link = get_permalink($product_id);
+        $site_name    = get_bloginfo('name');
 
         echo '
         <a href="#" id="call-to-us-btn" 
@@ -1238,6 +1252,9 @@ function custom_insert_call_to_us_button_php()
                 const productLink  = btn.getAttribute("data-link");
                 const siteName     = btn.getAttribute("data-site");
 
+                // Ambil jumlah yard dari localStorage
+                let yardValue = localStorage.getItem("yard_value") || "1";
+
                 // Ambil variasi warna dari swatch <li.selected>
                 let colorText = "Tanpa variasi";
                 const selectedColor = document.querySelector(".st-swatch-preview li.selected span[data-name]");
@@ -1247,15 +1264,16 @@ function custom_insert_call_to_us_button_php()
                 }
 
                 const message = 
-                    `Halo Admin ${siteName} 👋
-                    Saya tertarik dengan produk *${productName}*.
-                    SKU: ${productSKU}
-                    ID Produk: ${productID}
-                    Stok Tersedia: ${productStock}
-                    Link Produk: ${productLink}
-                    Pilihan saya:
-                    ${colorText}
-                    Mohon infonya lebih lanjut ya.`;
+`Halo Admin ${siteName} 👋
+Saya tertarik dengan produk *${productName}*.
+SKU: ${productSKU}
+ID Produk: ${productID}
+Stok Tersedia: ${productStock}
+Link Produk: ${productLink}
+Pilihan saya:
+${colorText}
+Jumlah: ${yardValue} yard
+Mohon infonya lebih lanjut ya.`;
 
                 const waLink = "https://wa.me/" + phone + "?text=" + encodeURIComponent(message);
                 window.open(waLink, "_blank");
@@ -1265,23 +1283,27 @@ function custom_insert_call_to_us_button_php()
     }
 }
 
+
 add_action('wp_footer', function () {
     if (!is_product()) return;
 
     global $product;
-    if (get_post_meta($product->get_id(), '_hide_product_price', true) !== 'yes') return;
-?>
-    <script>
-        jQuery(function($) {
-            $('.price, .woocommerce-variation-price, #price-per-yard-display').hide();
-            $('.woo-converter-wrapper, .woo-converter-fields').hide();
-            $('.single_add_to_cart_button, .button-buy-now, .beli-langsung-wa').hide();
-            $('form.cart .quantity').hide();
-            // Jangan sembunyikan product meta, tabs, reviews
-        });
-    </script>
+    if (get_post_meta($product->get_id(), '_hide_product_price', true) === 'yes') {
+    ?>
+        <script>
+            jQuery(function($) {
+                // Sembunyikan harga dan tombol beli
+                $('.price, .woocommerce-variation-price, #price-per-yard-display').hide();
+                // Tampilkan input yard
+                $('.woo-converter-wrapper, .woo-converter-fields').show(); // Pastikan input yard ditampilkan
+                $('.single_add_to_cart_button, .button-buy-now, .beli-langsung-wa').hide();
+                $('form.cart .quantity').show(); // Sembunyikan kuantitas jika diperlukan
+            });
+        </script>
 <?php
+    }
 });
+
 
 
 add_action('wp_head', function () {
@@ -1295,9 +1317,10 @@ add_action('wp_head', function () {
             /* Sembunyikan harga dan tombol beli */
             .price,
             .woocommerce-variation-price,
+            .woocommerce-Price-amount,
             #price-per-yard-display,
-            .woo-converter-wrapper,
-            .woo-converter-fields,
+            /*.woo-converter-wrapper, */
+            /*.woo-converter-fields,*/
             .single_add_to_cart_button,
             .button-buy-now,
             .beli-langsung-wa,
@@ -1326,3 +1349,63 @@ add_action('wp_head', function () {
         </style>';
     }
 });
+
+// Redirect setelah order sukses di halaman thank you, jika ada produk WA order
+add_action('woocommerce_thankyou', 'redirect_to_whatsapp_after_order');
+function redirect_to_whatsapp_after_order($order_id)
+{
+    if (!$order_id) return;
+
+    $order = wc_get_order($order_id);
+    if (!$order) return;
+
+    // Cek produk dengan ACF order_via_whatsapp = 'yes'
+    $has_whatsapp_order = false;
+    foreach ($order->get_items() as $item) {
+        $product_id = $item->get_product_id();
+        $whatsapp_field = get_field('order_via_whatsapp', $product_id);
+        if ($whatsapp_field && in_array('yes', (array) $whatsapp_field)) {
+            $has_whatsapp_order = true;
+            break;
+        }
+    }
+
+    if (!$has_whatsapp_order) return; // Jika tidak ada produk WA, skip
+
+    $wa_number = get_whatsapp_number();
+    if (!$wa_number) return;
+
+    // Data pelanggan
+    $customer_name = $order->get_billing_first_name() . ' ' . $order->get_billing_last_name();
+    $customer_phone = $order->get_billing_phone();
+    $customer_email = $order->get_billing_email();
+    $order_total = $order->get_formatted_order_total();
+
+    // List produk
+    $items_text = "";
+    foreach ($order->get_items() as $item) {
+        $product_name = $item->get_name();
+        $qty = $item->get_quantity();
+        $items_text .= "- {$product_name} (Qty: {$qty})\n";
+    }
+
+    // Buat pesan WA
+    $message = "Halo Admin,\n";
+    $message .= "Ada order baru dari website:\n\n";
+    $message .= "Nama: {$customer_name}\n";
+    $message .= "Telepon: {$customer_phone}\n";
+    $message .= "Email: {$customer_email}\n";
+    $message .= "Order ID: #{$order_id}\n";
+    $message .= "Total: {$order_total}\n";
+    $message .= "Detail produk:\n{$items_text}\n";
+    $message .= "Mohon tindak lanjut ya. Terima kasih!";
+
+    // Redirect ke WA
+    $wa_link = "https://wa.me/" . preg_replace('/^0/', '62', $wa_number) . "?text=" . rawurlencode($message);
+
+    // Redirect hanya kalau bukan admin
+    if (!is_admin()) {
+        wp_safe_redirect($wa_link);
+        exit;
+    }
+}
