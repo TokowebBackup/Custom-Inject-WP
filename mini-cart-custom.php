@@ -1,12 +1,19 @@
 <?php
-/**
-@author : Puji Ermanto <pujiermanto@gmail.com> | AKA Jhony Kemod | AKA Cowok Paling Ganteng Di komplek ini
-**/
-if ( ! defined( 'ABSPATH' ) ) exit;
-do_action( 'woocommerce_before_mini_cart' );
+if (! defined('ABSPATH')) exit;
+
+$cart_items = WC()->cart->get_cart();
+if (empty($cart_items)) return;
+
+do_action('woocommerce_before_mini_cart');
 
 $cart_items = WC()->cart->get_cart();
 $first_cart_item = reset($cart_items);
+
+if (! $first_cart_item || ! isset($first_cart_item['data']) || ! is_object($first_cart_item['data'])) {
+    echo '<p>Keranjang belanja kosong atau data tidak valid.</p>';
+    return; // stop render mini cart custom
+}
+
 $first_product = $first_cart_item['data'];
 $product_id = $first_product->is_type('variation') ? $first_product->get_parent_id() : $first_product->get_id();
 
@@ -35,152 +42,167 @@ if ($whatsapp_query->have_posts()) {
 wp_reset_postdata();
 ?>
 <style>
-.custom-mini-cart-popup {
-    position: fixed;
-    top: 0;
-    right: 0;
-    width: 400px;
-    height: 100%;
-    background: #fff;
-    box-shadow: -2px 0 10px rgba(0,0,0,0.2);
-    padding: 20px;
-    z-index: 9999;
-    overflow-y: auto;
-    display: block;
-    font-family: 'Segoe UI', sans-serif;
-}
-.mini-cart-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-}
-.label {
-    font-weight: 600;
-}
-.satuan-section {
-    display: flex;
-    flex-direction: column;
-    margin-bottom: 15px;
-}
-.satuan-header {
-    display: flex;
-    justify-content: flex-start;
-    width: 100%;
-    align-items: center;
-    margin-bottom: 5px;
-    gap: 117px;
-}
-.stock-and-input {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    gap: 10px;
-    margin-top: .8rem;
-}
-.stock {
-    color: #e53935;
-    font-weight: bold;
-    font-size: 14px;
-    white-space: nowrap;
-}
-.radio-option {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-weight: 500;
-}
+    .custom-mini-cart-popup {
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 400px;
+        height: 100%;
+        background: #fff;
+        box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);
+        padding: 20px;
+        z-index: 9999;
+        overflow-y: auto;
+        display: block;
+        font-family: 'Segoe UI', sans-serif;
+    }
 
-.radio-option input[type="radio"] {
-    appearance: none;
-    width: 18px;
-    height: 18px;
-    border: 2px solid #888;
-    border-radius: 50%;
-    display: inline-block;
-    position: relative;
-    cursor: pointer;
-    z-index: 1;
-}
-.radio-option input[type="radio"]:checked::before {
-    content: '';
-    display: block;
-    width: 10px !important;
-    height: 10px !important;
-    background-color: #0f172a !important;
-    border-radius: 50% !important;
-    position: absolute !important;
-    top: 3px !important;
-    left: 3px !important;
-}
+    .mini-cart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 1rem;
+        margin-bottom: 20px;
+    }
 
-.quantity-input-wrapper {
-    display: flex;
-    border: 1px solid #e0e0e0;
-    border-radius: 6px;
-    overflow: hidden;
-    width: 200px;
-    background-color: white;
-}
-.quantity-input-wrapper input[type="number"] {
-    border: none;
-    padding: 10px;
-    font-size: 18px;
-    width: 100%;
-    box-sizing: border-box;
-    outline: none;
-    background: transparent;
-}
-.unit-label {
-    background-color: #1e293b;
-    color: white;
-    padding: 10px;
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 50px;
-}
-.price {
-    font-weight: bold;
-    color: #1e293b;
-    margin-top: 5px;
-}
-.checkout-button {
-    display: block;
-    width: 100%;
-    text-align: center;
-    background-color: #222;
-    color: #fff;
-    padding: 15px;
-    border-radius: 5px;
-    text-transform: uppercase;
-    font-weight: bold;
-    margin-top: 20px;
-}
-.checkout-button:hover {
-    color: #fff;
-}
-.info-text {
-    font-size: 12px;
-    color: #777;
-    margin-bottom: 20px;
-}
+    .label {
+        font-weight: 600;
+    }
 
-.custom-mini-cart-popup {
-    display: flex;
-    flex-direction: column;
-}
+    .satuan-section {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 15px;
+    }
 
-.mini-cart-footer {
-    margin-top: auto;
-}
+    .satuan-header {
+        display: flex;
+        justify-content: flex-start;
+        width: 100%;
+        align-items: center;
+        margin-bottom: 5px;
+        gap: 117px;
+    }
+
+    .stock-and-input {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        gap: 10px;
+        margin-top: .8rem;
+    }
+
+    .stock {
+        color: #e53935;
+        font-weight: bold;
+        font-size: 14px;
+        white-space: nowrap;
+    }
+
+    .radio-option {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 500;
+    }
+
+    .radio-option input[type="radio"] {
+        appearance: none;
+        width: 18px;
+        height: 18px;
+        border: 2px solid #888;
+        border-radius: 50%;
+        display: inline-block;
+        position: relative;
+        cursor: pointer;
+        z-index: 1;
+    }
+
+    .radio-option input[type="radio"]:checked::before {
+        content: '';
+        display: block;
+        width: 10px !important;
+        height: 10px !important;
+        background-color: #0f172a !important;
+        border-radius: 50% !important;
+        position: absolute !important;
+        top: 3px !important;
+        left: 3px !important;
+    }
+
+    .quantity-input-wrapper {
+        display: flex;
+        border: 1px solid #e0e0e0;
+        border-radius: 6px;
+        overflow: hidden;
+        width: 200px;
+        background-color: white;
+    }
+
+    .quantity-input-wrapper input[type="number"] {
+        border: none;
+        padding: 10px;
+        font-size: 18px;
+        width: 100%;
+        box-sizing: border-box;
+        outline: none;
+        background: transparent;
+    }
+
+    .unit-label {
+        background-color: #1e293b;
+        color: white;
+        padding: 10px;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 50px;
+    }
+
+    .price {
+        font-weight: bold;
+        color: #1e293b;
+        margin-top: 5px;
+    }
+
+    .checkout-button {
+        display: block;
+        width: 100%;
+        text-align: center;
+        background-color: #222;
+        color: #fff;
+        padding: 15px;
+        border-radius: 5px;
+        text-transform: uppercase;
+        font-weight: bold;
+        margin-top: 20px;
+    }
+
+    .checkout-button:hover {
+        color: #fff;
+    }
+
+    .info-text {
+        font-size: 12px;
+        color: #777;
+        margin-bottom: 20px;
+    }
+
+    .custom-mini-cart-popup {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .mini-cart-footer {
+        margin-top: auto;
+    }
 </style>
 
-<div class="custom-mini-cart-popup">
+<div class="custom-mini-cart-popup" id="custom-mini-cart">
     <div class="mini-cart-header">
-        <h3><?php echo esc_html( $first_product->get_name() ); ?></h3>
+        <h3><?php echo esc_html($first_product->get_name()); ?></h3>
     </div>
 
     <p class="info-text">Stok yang ditampilkan dapat berubah sewaktu-waktu</p>
@@ -191,7 +213,7 @@ wp_reset_postdata();
                 <div class="label">Satuan</div>
                 <div class="radio-option">
                     <label>
-                        <input type="radio" name="unit" value="yard" <?php checked( $enable_converter, 'yes' ); ?>> Yard
+                        <input type="radio" name="unit" value="yard" <?php checked($enable_converter, 'yes'); ?>> Yard
                     </label>
                 </div>
             </div>
@@ -213,7 +235,7 @@ wp_reset_postdata();
         if (isset($first_cart_item['variation_id'])) {
             $variation_id = $first_cart_item['variation_id'];
             $image_id = get_post_meta($variation_id, 'upload_image_id', true);
-            
+
             if ($image_id) {
                 $image_url = wp_get_attachment_url($image_id);
                 echo '<img src="' . esc_url($image_url) . '" alt="Warna" style="width: 50px; height: auto;">';
@@ -223,21 +245,21 @@ wp_reset_postdata();
 
         ?>
 
-        <a href="<?php echo esc_url( wc_get_checkout_url() ); ?>" class="checkout-button"><i class="fa-solid fa-bag-shopping"></i> BELI</a>
-        
-        
-        <?php if ( $nomor_wa && $first_product ):
+        <a href="<?php echo esc_url(wc_get_checkout_url()); ?>" class="checkout-button"><i class="fa-solid fa-bag-shopping"></i> BELI</a>
+
+
+        <?php if ($nomor_wa && $first_product):
             $site_name      = get_bloginfo('name');
             $product_title  = $first_product->get_name();
             $product_id     = $first_product->get_id();
             $product_url    = get_permalink($product_id);
-        
+
             $harga_format        = 'Rp ' . number_format($unit_price, 0, ',', '.');
             $total_bayar_format  = 'Rp ' . number_format($total_price, 0, ',', '.');
-        
+
             // Coba ambil variation ID
             $variation_id = isset($first_cart_item['variation_id']) ? $first_cart_item['variation_id'] : 0;
-        
+
             // Ambil warna dari cart item (yang disimpan di hook add_cart_item_data)
             $variation_warna = isset($first_cart_item['variation_warna']) ? $first_cart_item['variation_warna'] : '';
 
@@ -250,14 +272,14 @@ wp_reset_postdata();
                     }
                 }
             }
-            
+
             if ($variation_warna !== '') {
                 $variation_warna = ucwords(str_replace('-', ' ', $variation_warna));
             } else {
                 $variation_warna = '-';
             }
 
-        
+
             // Ambil gambar variasi (jika ada)
             $image_url = '';
             if ($variation_id) {
@@ -266,21 +288,21 @@ wp_reset_postdata();
                     $image_url = wp_get_attachment_url($image_id);
                 }
             }
-        
+
             // Format pesan
             $pesan_text = "Halo Admin {$site_name}, saya tertarik untuk membeli produk berikut:\n\n"
                 . "🧵 *Nama Produk:* {$product_title}" . ($variation_warna !== '-' ? " - {$variation_warna}" : "") . "\n"
                 . "📦 *Jumlah:* {$input_satuan} {$unit_label}\n"
                 . "💰 *Harga per {$unit_label}:* {$harga_format}\n"
                 . "🧾 *Total Bayar:* {$total_bayar_format}\n";
-            
+
             if ($image_url) {
                 $pesan_text .= "🖼️ *Gambar:* {$image_url}\n";
             }
-            
+
             $pesan_text .= "🔗 *Link Produk:* {$product_url}\n\n"
                 . "Mohon konfirmasinya ya, terima kasih 🙏";
-        
+
             $wa_link = "https://wa.me/{$nomor_wa}?text=" . urlencode($pesan_text);
         ?>
             <a href="<?php echo htmlspecialchars($wa_link, ENT_QUOTES, 'UTF-8'); ?>" target="_blank" class="checkout-button" style="margin-top: 10px; background-color: #25D366;">
@@ -292,66 +314,51 @@ wp_reset_postdata();
 </div>
 
 <script type="text/javascript">
+    function formatRupiah(angka) {
+        return "Rp " + angka.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    }
 
-// function formatRupiah(angka) {
-//     return "Rp " + angka.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-// }
-
-// document.addEventListener("DOMContentLoaded", function () {
-//     const quantityInput = document.getElementById('input-satuan');
-//     console.log(quantityInput)
-//     const totalPriceEl = document.getElementById('total-price');
-//     const unitPrice = <?php echo json_encode($unit_price); ?>;
-//     const unitLabel = <?php echo json_encode($unit_label); ?>;
-
-//     function updateTotal() {
-//         const qty = parseFloat(quantityInput.value);
-//         const total = !isNaN(qty) ? qty * unitPrice : 0;
-//         totalPriceEl.textContent = `Total Harga: ${formatRupiah(total)} / ${unitLabel}`;
-//     }
-
-//     quantityInput.addEventListener('input', updateTotal);
-//     updateTotal();
-    
-// });
-const myAjaxData = {
-    ajax_url: "<?php echo admin_url('admin-ajax.php'); ?>",
-    nonce: "<?php echo wp_create_nonce('update_cart_nonce'); ?>"
-};
-(function () {
-    const interval = setInterval(function () {
+    document.addEventListener("DOMContentLoaded", function() {
         const quantityInput = document.getElementById('input-satuan');
         const totalPriceEl = document.getElementById('total-price');
-        if (quantityInput && totalPriceEl) {
-            clearInterval(interval);
-            const unitPrice = <?php echo json_encode($unit_price); ?>;
-            const unitLabel = <?php echo json_encode($unit_label); ?>;
+        const unitPrice = <?php echo json_encode($unit_price); ?>;
+        const unitLabel = <?php echo json_encode($unit_label); ?>;
 
-            function formatRupiah(angka) {
-                return "Rp " + angka.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        function updateTotal() {
+            const qty = parseFloat(quantityInput.value);
+            const total = !isNaN(qty) ? qty * unitPrice : 0;
+            totalPriceEl.textContent = Total Harga: $ {
+                formatRupiah(total)
             }
 
-            function updateTotal() {
-                const qty = parseFloat(quantityInput.value);
-                const total = !isNaN(qty) ? qty * unitPrice : 0;
-                totalPriceEl.textContent = `Total Harga: ${formatRupiah(total)} / ${unitLabel}`;
-            
-                // AJAX untuk update cart WooCommerce
-                const xhr = new XMLHttpRequest();
-                const data = new FormData();
-                data.append('action', 'update_cart_quantity');
-                data.append('input_satuan', qty);
-                data.append('_wpnonce', myAjaxData.nonce); // Tambahkan nonce
-                
-                xhr.open('POST', myAjaxData.ajax_url, true);
-                xhr.send(data);
-            }
+            // AJAX untuk update cart WooCommerce
+            const xhr = new XMLHttpRequest();
+            const data = new FormData();
+            data.append('action', 'update_cart_quantity');
+            data.append('input_satuan', qty);
+            data.append('_wpnonce', myAjaxData.nonce); // Tambahkan nonce
 
-            quantityInput.addEventListener('input', updateTotal);
-            updateTotal();
+            xhr.open('POST', myAjaxData.ajax_url, true);
+            xhr.send(data);
         }
-    }, 100);
-})();
 
+        quantityInput.addEventListener('input', updateTotal);
+        updateTotal();
+
+    });
 </script>
-<?php do_action( 'woocommerce_after_mini_cart' ); ?>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const miniCart = document.getElementById("custom-mini-cart");
+
+        document.addEventListener("click", function(event) {
+            // Jika klik di luar elemen mini cart
+            if (!miniCart.contains(event.target)) {
+                miniCart.style.display = "none";
+            }
+        });
+    });
+</script>
+
+<?php do_action('woocommerce_after_mini_cart'); ?>
