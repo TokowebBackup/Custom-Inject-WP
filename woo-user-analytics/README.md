@@ -1,5 +1,5 @@
 # WooCommerce User Analytics
-![Uploading Screenshot 2025-08-13 045642.png…]()
+<img width="1859" height="909" alt="Screenshot 2025-08-13 045642" src="https://github.com/user-attachments/assets/4a2b7786-e51f-45a7-a2ce-94ded83223aa" />
 
 Plugin ini menambahkan laporan analitik pengguna dan data order di WooCommerce Analytics dengan tampilan chart langsung di halaman admin WordPress.
 
