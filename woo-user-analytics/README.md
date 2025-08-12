@@ -1,4 +1,5 @@
 # WooCommerce User Analytics
+![Uploading Screenshot 2025-08-13 045642.png…]()
 
 Plugin ini menambahkan laporan analitik pengguna dan data order di WooCommerce Analytics dengan tampilan chart langsung di halaman admin WordPress.
 
