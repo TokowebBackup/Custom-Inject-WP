@@ -1,4 +1,6 @@
 # PPDB Elementor Widget
+<img width="1919" height="958" alt="Screenshot 2025-09-16 234522" src="https://github.com/user-attachments/assets/ab09d5a4-4f61-4449-bd8f-db88370f3255" />
+<img width="1910" height="959" alt="Screenshot 2025-09-16 234512" src="https://github.com/user-attachments/assets/19b5f5a5-1578-418f-8c62-e09b60555df4" />
 
 **PPDB Elementor Widget** adalah plugin WordPress kustom untuk menambahkan widget Elementor dan shortcode yang menampilkan gambar dari **Option Page JetEngine** (misalnya konten PPDB Online).  
 
