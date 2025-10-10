@@ -118,221 +118,6 @@ add_filter('woocommerce_coupon_is_valid_for_cart', function ($valid, $coupon) {
     return $valid;
 }, 10, 2);
 
-// add_action('woocommerce_cart_calculate_fees', function ($cart) {
-//     if (is_admin() && !defined('DOING_AJAX')) return;
-
-//     $user = wp_get_current_user();
-//     if (!in_array('mitra', (array)$user->roles)) return;
-
-//     $original_total = 0;
-//     $total_qty = 0;
-
-//     foreach ($cart->get_cart() as $item) {
-//         $product = $item['data'];
-//         $qty = $item['quantity'];
-//         $price = (float) $product->get_regular_price();
-
-//         $original_total += $price * $qty;
-//         $total_qty += $qty;
-//     }
-
-//     // 🔎 Cek apakah ada kupon aktif bertipe "mitra_discount"
-//     $applied_coupons = $cart->get_applied_coupons();
-//     $voucher_percent = 0;
-
-//     foreach ($applied_coupons as $code) {
-//         $coupon = new WC_Coupon($code);
-//         if ($coupon->get_discount_type() === 'mitra_discount') {
-//             $voucher_percent = (float) get_post_meta($coupon->get_id(), '_mitra_discount', true);
-//             break;
-//         }
-//     }
-
-//     // 🧮 Jika tidak ada kupon aktif, pakai logika range pembelian
-//     if ($voucher_percent <= 0) {
-//         if ($total_qty <= 10) {
-//             $voucher_percent = 50;
-//         } elseif ($total_qty <= 20) {
-//             $voucher_percent = 80;
-//         } else {
-//             $voucher_percent = 90;
-//         }
-//     }
-
-//     // 💡 Cek apakah cart berisi produk dengan deposit (DP)
-//     $is_deposit = false;
-//     foreach ($cart->get_cart() as $item) {
-//         if (!empty($item['deposit']) && $item['deposit'] === 'yes') {
-//             $is_deposit = true;
-//             break;
-//         }
-//     }
-
-//     // 💰 Hitung total diskon sesuai mode pembayaran
-//     if ($is_deposit) {
-//         // 💡 Ambil DP asli dari YITH (sudah hitung harga mitra otomatis)
-//         $yith_deposit_total = 0;
-//         foreach ($cart->get_cart() as $item) {
-//             if (!empty($item['deposit']) && $item['deposit'] === 'yes') {
-//                 $yith_deposit_total += $item['line_total']; // harga DP aktual dari YITH
-//             }
-//         }
-
-//         // Jika tidak ketemu nilai DP (fallback ke 50%)
-//         if ($yith_deposit_total <= 0) {
-//             $yith_deposit_total = ($original_total * 0.5) * 0.5; // harga mitra + DP default
-//         }
-
-//         // Terapkan diskon voucher hanya pada nilai DP aktual
-//         $discount_amount = ($voucher_percent / 100) * $yith_deposit_total;
-//         $final_checkout = $yith_deposit_total - $discount_amount;
-
-//         // Pelunasan tetap nilai DP asli (tanpa potongan)
-//         $pelunasan = $yith_deposit_total;
-//     }
-
-
-//     // 💾 Simpan data ke session (buat tampilan cart)
-//     WC()->session->set('mitra_total_discount', $discount_amount);
-//     WC()->session->set('mitra_dp_amount', $final_checkout);
-//     WC()->session->set('mitra_pelunasan_amount', $pelunasan);
-
-//     // ✅ Tambahkan diskon ke cart
-//     $cart->add_fee(sprintf('Diskon Mitra (%d%%)', $voucher_percent), -$discount_amount);
-// }, 999);
-// add_action('woocommerce_cart_calculate_fees', function ($cart) {
-//     if (is_admin() && !defined('DOING_AJAX')) return;
-
-//     $user = wp_get_current_user();
-//     if (!in_array('mitra', (array)$user->roles)) return;
-
-//     $original_total = 0;
-//     $total_qty = 0;
-//     $has_deposit = false;
-
-//     foreach ($cart->get_cart() as $item) {
-//         $product = $item['data'];
-//         $qty = $item['quantity'];
-//         $price = (float)$product->get_regular_price();
-
-//         $original_total += $price * $qty;
-//         $total_qty += $qty;
-
-//         // ✅ YITH menyimpan data deposit di '_deposit_info'
-//         if (!empty($item['_deposit_info'])) {
-//             $has_deposit = true;
-//         }
-//     }
-
-//     // 🔎 Cari kupon mitra aktif
-//     $voucher_percent = 0;
-//     foreach ($cart->get_applied_coupons() as $code) {
-//         $coupon = new WC_Coupon($code);
-//         if ($coupon->get_discount_type() === 'mitra_discount') {
-//             $voucher_percent = (float)get_post_meta($coupon->get_id(), '_mitra_discount', true);
-//             break;
-//         }
-//     }
-
-//     // default fallback
-//     if ($voucher_percent <= 0) {
-//         $voucher_percent = 50;
-//     }
-
-//     // 💰 Ambil total DP aktual dari YITH
-//     $yith_deposit_total = 0;
-//     if ($has_deposit) {
-//         foreach ($cart->get_cart() as $item) {
-//             if (!empty($item['_deposit_info']['deposit_amount'])) {
-//                 $yith_deposit_total += (float)$item['_deposit_info']['deposit_amount'] * (int)$item['quantity'];
-//             }
-//         }
-//     }
-
-//     if ($yith_deposit_total <= 0) {
-//         // fallback ke 50% dari total harga mitra
-//         $yith_deposit_total = $original_total * 0.5;
-//     }
-
-//     // 🧮 Hitung diskon berdasarkan DP
-//     $discount_amount = ($voucher_percent / 100) * $yith_deposit_total;
-//     $final_checkout = $yith_deposit_total - $discount_amount;
-//     $pelunasan = $yith_deposit_total; // pelunasan tetap harga DP asli
-
-//     // 💾 simpan ke session
-//     WC()->session->set('mitra_total_discount', $discount_amount);
-//     WC()->session->set('mitra_dp_amount', $final_checkout);
-//     WC()->session->set('mitra_pelunasan_amount', $pelunasan);
-
-//     // ✅ tampilkan di cart
-//     $cart->add_fee(sprintf('Diskon Mitra (%d%%)', $voucher_percent), -$discount_amount);
-// }, 999);
-
-// add_action('woocommerce_cart_calculate_fees', function ($cart) {
-//     if (is_admin() && !defined('DOING_AJAX')) return;
-
-//     $user = wp_get_current_user();
-//     if (!in_array('mitra', (array)$user->roles)) return;
-
-//     $original_total = 0;
-//     $total_qty = 0;
-//     $has_deposit = false;
-
-//     foreach ($cart->get_cart() as $item) {
-//         $product = $item['data'];
-//         $qty = $item['quantity'];
-//         $price = (float)$product->get_regular_price();
-
-//         $original_total += $price * $qty;
-//         $total_qty += $qty;
-
-//         if (!empty($item['_deposit_info'])) {
-//             $has_deposit = true;
-//         }
-//     }
-
-//     // 🔎 Cek kupon Diskon Mitra
-//     $voucher_percent = 0;
-//     foreach ($cart->get_applied_coupons() as $code) {
-//         $coupon = new WC_Coupon($code);
-//         if ($coupon->get_discount_type() === 'mitra_discount') {
-//             $voucher_percent = (float)get_post_meta($coupon->get_id(), '_mitra_discount', true);
-//             break;
-//         }
-//     }
-
-//     if ($voucher_percent <= 0) $voucher_percent = 50;
-
-//     // 💰 Ambil total DP dari YITH
-//     $yith_deposit_total = 0;
-//     if ($has_deposit) {
-//         foreach ($cart->get_cart() as $item) {
-//             if (!empty($item['_deposit_info']['deposit_amount'])) {
-//                 $yith_deposit_total += (float)$item['_deposit_info']['deposit_amount'] * (int)$item['quantity'];
-//             }
-//         }
-//     }
-
-//     if ($yith_deposit_total <= 0) {
-//         $yith_deposit_total = $original_total * 0.5;
-//     }
-
-//     // 🧮 Hitung nilai total harga setelah diskon
-//     $total_setelah_diskon = $original_total - ($original_total * ($voucher_percent / 100));
-
-//     // 💰 DP dan Pelunasan dari harga setelah diskon
-//     $deposit_amount = $total_setelah_diskon * 0.5;
-//     $pelunasan = $total_setelah_diskon * 0.5;
-//     $discount_amount = $original_total * ($voucher_percent / 100);
-
-//     // 💾 Simpan data
-//     WC()->session->set('mitra_total_discount', $discount_amount);
-//     WC()->session->set('mitra_dp_amount', $deposit_amount);
-//     WC()->session->set('mitra_pelunasan_amount', $pelunasan);
-
-//     // ✅ Tampilkan diskon di cart
-//     $cart->add_fee(sprintf('Diskon Mitra (%d%%)', $voucher_percent), -$discount_amount);
-// }, 999);
 
 add_action('woocommerce_cart_calculate_fees', function ($cart) {
     if (is_admin() && !defined('DOING_AJAX')) return;
@@ -840,3 +625,123 @@ add_action('wp_head', function () {
         }
     </style>';
 });
+
+
+// 1) Terapkan harga Mitra langsung ke cart items sebelum totals dihitung
+add_action('woocommerce_before_calculate_totals', function ($cart) {
+    if (is_admin() && ! defined('DOING_AJAX')) return;
+    if (empty($cart) || ! is_user_logged_in()) return;
+
+    $user = wp_get_current_user();
+    if (! in_array('mitra', (array) $user->roles)) return;
+
+    // Cari kupon mitra aktif (jika ada)
+    $voucher_percent = 0;
+    $applied = $cart->get_applied_coupons();
+    foreach ($applied as $code) {
+        $coupon = new WC_Coupon($code);
+        if ($coupon->get_discount_type() === 'mitra_discount') {
+            $voucher_percent = (float) get_post_meta($coupon->get_id(), '_mitra_discount', true);
+            break;
+        }
+    }
+    // fallback jika tidak ada kupon
+    if ($voucher_percent <= 0) $voucher_percent = 50; // sesuaikan default kamu
+
+    $original_total = 0;
+    $yith_deposit_total = 0;
+
+    foreach ($cart->get_cart() as $cart_item_key => &$cart_item) {
+        // hanya apply sekali per item
+        if (! empty($cart_item['mitra_price_applied'])) continue;
+
+        $product = $cart_item['data'];
+        $regular = (float) $product->get_regular_price();
+        if ($regular <= 0) {
+            // jika produk tidak punya regular price gunakan get_price()
+            $regular = (float) $product->get_price();
+        }
+
+        // harga mitra = regular - (regular * 50%)  -> kalau kamu pakai rule lain, ubah di sini
+        $mitra_price = $regular * 0.5;
+
+        // jika kupon mitra aktif, terapkan persentase kupon pada harga mitra (atau pada DP saja tergantung logika)
+        // di sini kita terapkan kupon pada harga mitra (sesuaikan kalau mau hanya pada DP)
+        if ($voucher_percent > 0) {
+            $mitra_price = $mitra_price - ($mitra_price * ($voucher_percent / 100));
+        }
+
+        // set harga unit pada cart item sehingga semua kalkulasi berikutnya pakai harga ini
+        $cart_item['data']->set_price($mitra_price);
+
+        // flag agar tidak apply lagi
+        $cart_item['mitra_price_applied'] = true;
+
+        // untuk perhitungan session
+        $original_total += $regular * $cart_item['quantity'];
+
+        // jika punya info deposit dari YITH, coba akumulasikan deposit_amount (fallback nanti)
+        if (! empty($cart_item['_deposit_info']['deposit_amount'])) {
+            $yith_deposit_total += (float) $cart_item['_deposit_info']['deposit_amount'] * (int) $cart_item['quantity'];
+        }
+    }
+
+    // Hitung DP & discount sesuai aturan kamu (contoh: DP = 50% dari harga mitra; discount dihitung sebelumnya)
+    // Karena kita telah set price item => subtotal/cart totals otomatis terpengaruh
+    $cart_subtotal = $cart->get_subtotal(); // sudah memakai harga mitra sebab set_price di atas
+    // hitung DP sebagai 50% dari subtotal mitra
+    $dp_mitra = $cart_subtotal * 0.5;
+
+    // diskon tambahan (kalau kamu ingin pakai voucher_percent pada DP saja, sesuaikan di sini)
+    $discount_amount = ($voucher_percent / 100) * $dp_mitra;
+
+    $final_checkout_dp = $dp_mitra - $discount_amount;
+    $pelunasan = $dp_mitra; // sesuai logikamu: pelunasan tetap DP asli
+
+    // simpan ke session agar tampilan cart/checkout bisa pakai
+    WC()->session->set('mitra_total_discount', $discount_amount);
+    WC()->session->set('mitra_dp_amount', $final_checkout_dp);
+    WC()->session->set('mitra_pelunasan_amount', $pelunasan);
+
+    // IMPORTANT: kalau perlu menambahkan fee diskon (agar muncul di totals), tambahkan di hook fees
+    // tapi hati-hati: fees ditambahkan di cart_calculate_fees; di banyak kasus fees bisa double jika ditambahkan
+    // jadi saya sarankan menambahkan fee pada hook cart_calculate_fees dengan pengecekan session (kamu sudah punya fungsi)
+}, 20, 1);
+
+// 2) Pastikan order items disesuaikan saat order dibuat (safety)
+add_action('woocommerce_checkout_create_order', function ($order, $data) {
+    if (! is_user_logged_in()) return;
+    $user = wp_get_current_user();
+    if (! in_array('mitra', (array) $user->roles)) return;
+
+    // mapping cart product_id => cart item (ambil data WC_Cart)
+    $cart_map = [];
+    if (WC()->cart) {
+        foreach (WC()->cart->get_cart() as $ci) {
+            $cart_map[$ci['product_id']] = $ci;
+        }
+    }
+
+    foreach ($order->get_items() as $item_id => $item) {
+        if (! $item instanceof WC_Order_Item_Product) continue;
+        $pid = $item->get_product_id();
+        if (isset($cart_map[$pid])) {
+            $ci = $cart_map[$pid];
+            $unit_price = (float) $ci['data']->get_price();
+            $qty = (int) $ci['quantity'];
+            $line_total = $unit_price * $qty;
+
+            // set subtotal & total untuk item (tanpa tax)
+            $item->set_subtotal($line_total);
+            $item->set_subtotal_tax(0);
+            $item->set_total($line_total);
+            $item->set_total_tax(0);
+
+            // save item
+            $item->save();
+        }
+    }
+
+    // recalc order totals (tanpa recalculating taxes here)
+    $order->calculate_totals(false);
+}, 10, 2);
