@@ -1,9 +1,8 @@
 <?php
 
-
 /**
  * WooCommerce Custom Product Info + SweetAlert + Integrasi WhatsApp Chat dari Plugin Floating WhatsApp Chat
- * @author Tokoweb
+ * @author Puji Ermanto From Tokoweb <pujiermanto@tokoweb.co> | Alias Mansiur
  */
 
 // =====================================================
@@ -780,4 +779,20 @@ Kami akan menghubungi kamu kembali jika ada info lebih lanjut.%0A
     });
     </script>
     ";
+});
+
+
+add_action('woocommerce_product_options_sku', function () {
+    woocommerce_wp_text_input([
+        'id' => '_sku_erp',
+        'label' => __('SKU ERP', 'woocommerce'),
+        'desc_tip' => true,
+        'description' => __('Kode produk dari sistem ERP.', 'woocommerce'),
+    ]);
+});
+
+add_action('woocommerce_admin_process_product_object', function ($product) {
+    if (isset($_POST['_sku_erp'])) {
+        $product->update_meta_data('_sku_erp', sanitize_text_field($_POST['_sku_erp']));
+    }
 });
