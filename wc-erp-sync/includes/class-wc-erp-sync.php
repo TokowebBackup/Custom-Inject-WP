@@ -282,6 +282,27 @@ class WC_ERP_Sync
             'callback' => [$this, 'get_api_schema'],
             'permission_callback' => '__return_true', // publik
         ]);
+
+        // === Endpoint daftar order ===
+        register_rest_route('erp/v1', '/orders', [
+            'methods' => 'GET',
+            'callback' => [$this, 'get_orders_list'],
+            'permission_callback' => [$this, 'check_api_key_permission'],
+        ]);
+
+        // === Endpoint detail order ===
+        register_rest_route('erp/v1', '/orders/(?P<id>\d+)', [
+            'methods' => 'GET',
+            'callback' => [$this, 'get_order_detail'],
+            'permission_callback' => [$this, 'check_api_key_permission'],
+        ]);
+
+        // Arah: ERP → WooCommerce
+        register_rest_route('erp/v1', '/product-sync', [
+            'methods' => 'POST',
+            'callback' => [$this, 'handle_product_sync'],
+            'permission_callback' => [$this, 'check_api_key_permission'],
+        ]);
     }
 
     public function get_api_schema()
@@ -301,45 +322,104 @@ class WC_ERP_Sync
                     'get' => [
                         'summary' => 'Ambil Daftar Produk',
                         'description' => 'Menarik data produk dari WooCommerce untuk sinkronisasi ERP.',
+                        'parameters' => [[
+                            'name' => 'X-ERP-KEY',
+                            'in' => 'header',
+                            'required' => true,
+                            'schema' => ['type' => 'string'],
+                            'description' => 'API key ERP untuk autentikasi'
+                        ]],
+                        'responses' => [
+                            '200' => ['description' => 'Daftar produk berhasil diambil'],
+                            '401' => ['description' => 'API key tidak valid'],
+                        ]
+                    ]
+                ],
+
+                '/orders' => [
+                    'get' => [
+                        'summary' => 'Ambil Daftar Order',
+                        'description' => 'ERP menarik daftar order terbaru dari WooCommerce.',
+                        'parameters' => [[
+                            'name' => 'X-ERP-KEY',
+                            'in' => 'header',
+                            'required' => true,
+                            'schema' => ['type' => 'string']
+                        ]],
+                        'responses' => [
+                            '200' => ['description' => 'Daftar order berhasil diambil'],
+                            '401' => ['description' => 'API key tidak valid']
+                        ]
+                    ]
+                ],
+
+                '/orders/{id}' => [
+                    'get' => [
+                        'summary' => 'Ambil Detail Order',
+                        'description' => 'Menampilkan detail order tertentu berdasarkan ID.',
                         'parameters' => [
+                            [
+                                'name' => 'id',
+                                'in' => 'path',
+                                'required' => true,
+                                'schema' => ['type' => 'integer']
+                            ],
                             [
                                 'name' => 'X-ERP-KEY',
                                 'in' => 'header',
                                 'required' => true,
-                                'schema' => ['type' => 'string'],
-                                'description' => 'API key ERP yang valid untuk autentikasi.'
+                                'schema' => ['type' => 'string']
                             ]
                         ],
                         'responses' => [
-                            '200' => [
-                                'description' => 'Berhasil mengambil daftar produk',
-                                'content' => [
-                                    'application/json' => [
-                                        'schema' => [
-                                            'type' => 'array',
-                                            'items' => [
-                                                'type' => 'object',
-                                                'properties' => [
-                                                    'id' => ['type' => 'integer'],
-                                                    'sku' => ['type' => 'string'],
-                                                    'name' => ['type' => 'string'],
-                                                    'price' => ['type' => 'string'],
-                                                    'stock' => ['type' => 'integer'],
-                                                ]
-                                            ]
-                                        ]
-                                    ]
-                                ]
-                            ],
-                            '401' => ['description' => 'API key tidak valid'],
+                            '200' => ['description' => 'Detail order ditemukan'],
+                            '404' => ['description' => 'Order tidak ditemukan'],
+                            '401' => ['description' => 'API key tidak valid']
                         ]
                     ]
-                ]
+                ],
+
+                '/product-sync' => [
+                    'post' => [
+                        'summary' => 'Sinkronisasi Produk dari ERP ke WooCommerce',
+                        'description' => 'ERP mengirimkan data produk untuk ditambahkan atau diperbarui di WooCommerce.',
+                        'parameters' => [[
+                            'name' => 'X-ERP-KEY',
+                            'in' => 'header',
+                            'required' => true,
+                            'schema' => ['type' => 'string']
+                        ]],
+                        'requestBody' => [
+                            'required' => true,
+                            'content' => [
+                                'application/json' => [
+                                    'schema' => [
+                                        'type' => 'object',
+                                        'properties' => [
+                                            'sku_erp' => ['type' => 'string'],
+                                            'name'    => ['type' => 'string'],
+                                            'price'   => ['type' => 'number'],
+                                            'stock'   => ['type' => 'integer']
+                                        ],
+                                        'required' => ['sku_erp', 'name']
+                                    ]
+                                ]
+                            ]
+                        ],
+                        'responses' => [
+                            '200' => ['description' => 'Produk berhasil disinkronkan'],
+                            '400' => ['description' => 'Data tidak lengkap'],
+                            '401' => ['description' => 'API key tidak valid']
+                        ]
+                    ]
+                ],
             ]
         ];
     }
 
-
+    // ==========================================================================
+    // Handler api-docs
+    // ==========================================================================
     public function get_products_list($request)
     {
         $args = [
@@ -360,6 +440,124 @@ class WC_ERP_Sync
                 'name'     => $product->post_title,
                 'price'    => $wc_product->get_price(),
                 'stock'    => $wc_product->get_stock_quantity(),
+            ];
+        }
+
+        return rest_ensure_response($data);
+    }
+
+
+    public function get_orders_list($request)
+    {
+        $args = [
+            'limit' => 50,
+            'orderby' => 'date',
+            'order' => 'DESC',
+            'status' => ['completed', 'processing'],
+        ];
+
+        $orders = wc_get_orders($args);
+        $data = [];
+
+        foreach ($orders as $order) {
+            $data[] = [
+                'order_id'   => $order->get_id(),
+                'order_date' => $order->get_date_created()->date('Y-m-d H:i:s'),
+                'customer'   => [
+                    'id'      => $order->get_user_id(),
+                    'name'    => $order->get_formatted_billing_full_name(),
+                    'email'   => $order->get_billing_email(),
+                    'address' => $order->get_billing_address_1(),
+                ],
+                'total'      => $order->get_total(),
+                'status'     => $order->get_status(),
+            ];
+        }
+
+        return rest_ensure_response($data);
+    }
+
+    public function get_order_detail($request)
+    {
+        $order_id = intval($request['id']);
+        $order = wc_get_order($order_id);
+        if (!$order) {
+            return new WP_Error('not_found', 'Order not found', ['status' => 404]);
+        }
+
+        $items = [];
+        foreach ($order->get_items() as $item) {
+            $product = $item->get_product();
+            $items[] = [
+                'sku_erp'   => get_post_meta($product->get_id(), '_sku_erp', true),
+                'product'   => $item->get_name(),
+                'qty'       => $item->get_quantity(),
+                'unit_price' => $product ? $product->get_price() : 0,
+                'subtotal'  => $item->get_total(),
+            ];
+        }
+
+        $shipping = $order->get_shipping_methods();
+        $shipping_data = [];
+        foreach ($shipping as $method) {
+            $shipping_data[] = [
+                'courier_name' => $method->get_name(),
+                'total_weight' => $order->get_meta('_weight'),
+                'shipping_fee' => $method->get_total(),
+            ];
+        }
+
+        $payment = [
+            'method' => $order->get_payment_method_title(),
+            'amount' => $order->get_total(),
+        ];
+
+        $data = [
+            'order_id'    => $order->get_id(),
+            'transaction_date' => $order->get_date_created()->date('Y-m-d H:i:s'),
+            'customer'    => [
+                'id'      => $order->get_user_id(),
+                'name'    => $order->get_formatted_billing_full_name(),
+                'address' => $order->get_billing_address_1(),
+            ],
+            'items'       => $items,
+            'shipping'    => $shipping_data,
+            'payment'     => $payment,
+        ];
+
+        return rest_ensure_response($data);
+    }
+
+    public function get_categories($request)
+    {
+        $terms = get_terms(['taxonomy' => 'product_cat', 'hide_empty' => false]);
+        $data = [];
+
+        foreach ($terms as $term) {
+            $data[] = [
+                'id' => $term->term_id,
+                'name' => $term->name,
+                'slug' => $term->slug,
+            ];
+        }
+
+        return rest_ensure_response($data);
+    }
+
+    public function get_brands($request)
+    {
+        if (!taxonomy_exists('product_brand')) {
+            return new WP_Error('not_found', 'Brand taxonomy not found', ['status' => 404]);
+        }
+
+        $terms = get_terms(['taxonomy' => 'product_brand', 'hide_empty' => false]);
+        $data = [];
+
+        foreach ($terms as $term) {
+            $data[] = [
+                'id' => $term->term_id,
+                'name' => $term->name,
+                'slug' => $term->slug,
             ];
         }
 

@@ -796,3 +796,13 @@ add_action('woocommerce_admin_process_product_object', function ($product) {
         $product->update_meta_data('_sku_erp', sanitize_text_field($_POST['_sku_erp']));
     }
 });
+
+add_filter('registration_errors', function ($errors, $sanitized_user_login, $user_email) {
+    $blocked_domains = ['gmx.sg', 'ronaldofmail.com', 'kra24.work'];
+    foreach ($blocked_domains as $domain) {
+        if (strpos($user_email, $domain) !== false) {
+            $errors->add('blocked_domain', __('Registrasi dengan domain email ini tidak diperbolehkan.'));
+        }
+    }
+    return $errors;
+}, 10, 3);
