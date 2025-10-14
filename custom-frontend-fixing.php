@@ -468,7 +468,7 @@ add_action('wp_head', function () { ?>
             font-family: "Font Awesome 5 Free";
             font-weight: 900;
             font-size: 16px;
-            color: #333;
+            color: #a4a2a2ff;
             display: block;
             line-height: 1;
         }
@@ -481,7 +481,7 @@ add_action('wp_head', function () { ?>
 
         /* Hover efek */
         .woocommerce form .password-input .show-password-input:hover::before {
-            color: #000;
+            color: #b6b2b2ff;
         }
 
         /* Pastikan tampil juga di edit account */
