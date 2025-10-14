@@ -1,5 +1,6 @@
 <?php
 
+
 /**
  * WooCommerce Custom Product Info + SweetAlert + Integrasi WhatsApp Chat dari Plugin Floating WhatsApp Chat
  * @author Tokoweb
@@ -8,6 +9,8 @@
 // =====================================================
 // 1️⃣ Menu Admin: WhatsApp Chat jadi menu utama
 // =====================================================
+// 
+
 add_action('admin_menu', function () {
     add_menu_page(
         'Floating WhatsApp Chat',
@@ -130,7 +133,10 @@ add_action('woocommerce_single_product_summary', function () {
 
     if ($kondisi) echo "<p><strong>Kondisi:</strong> " . ucfirst($kondisi) . "</p>";
     if ($ekspedisi) echo "<p><strong>Ekspedisi:</strong> {$ekspedisi}</p>";
-    if ($min_order) echo "<p><strong>Minimal Order:</strong> {$min_order} pcs</p>";
+    // if ($min_order) echo "<p><strong>Minimal Order:</strong> {$min_order} pcs</p>";
+    if ($status === 'preorder' && $min_order) {
+        echo "<p><strong>Minimal Order:</strong> {$min_order} pcs</p>";
+    }
 
     if ($status === 'preorder') {
         echo '<div class="po-warning">⚠️ Barang ini <strong>Pre-Order (Full Payment)</strong>. Pengiriman akan dilakukan setelah barang tersedia.</div>';
@@ -143,74 +149,51 @@ add_action('woocommerce_single_product_summary', function () {
 // =====================================================
 // 4️⃣ Validasi Minimal Order + SweetAlert (fix AJAX submit)
 // =====================================================
+// 4️⃣ Validasi Minimal Order + SweetAlert (Frontend)
 add_action('wp_footer', function () {
     if (!is_product()) return;
 
     global $product;
-    $product_id  = $product->get_id();
-    $status      = get_post_meta($product_id, '_product_status', true);
-    $min_order   = (int) get_post_meta($product_id, '_minimal_order', true);
 
-    if (!$min_order) return;
+    $product_id = $product->get_id();
+    $status     = get_post_meta($product_id, '_product_status', true); // 'preorder' atau 'ready'
+    $min_order  = get_post_meta($product_id, '_minimal_order', true);
+
+    // ✅ Jika bukan produk preorder, hentikan
+    if ($status !== 'preorder' || !$min_order) return;
 ?>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const form = document.querySelector('form.cart');
-            const qtyInput = form ? form.querySelector('input.qty') : null;
+        document.addEventListener("DOMContentLoaded", function() {
+            const form = document.querySelector("form.cart");
+            const qtyInput = form ? form.querySelector("input.qty") : null;
+            const minOrder = <?php echo (int) $min_order; ?>;
+
             if (!form || !qtyInput) return;
 
-            const minOrder = <?= $min_order ?>;
-            const productStatus = "<?= esc_js($status) ?>";
-
-            qtyInput.setAttribute('min', minOrder);
+            // Set default value dan batas minimum sesuai min order
+            qtyInput.setAttribute("min", minOrder);
             qtyInput.value = minOrder;
 
-            // 🔒 Intercept WooCommerce form submission
-            jQuery('form.cart').on('submit', function(e) {
+            // Validasi ketika tombol add to cart diklik
+            form.addEventListener("submit", function(e) {
                 const qty = parseInt(qtyInput.value);
 
-                // 🔹 PRE ORDER: harus tepat sama dengan min order
-                if (productStatus === 'preorder' && qty !== minOrder) {
+                if (qty !== minOrder) {
                     e.preventDefault();
-                    e.stopImmediatePropagation();
                     Swal.fire({
-                        icon: 'warning',
-                        title: 'Jumlah Tidak Sesuai',
+                        icon: "warning",
+                        title: "Perhatian!",
                         text: `Untuk produk Pre-Order, jumlah pembelian harus tepat ${minOrder} pcs.`,
-                        confirmButtonColor: '#3085d6',
-                        confirmButtonText: 'Oke, saya ubah'
+                        confirmButtonText: "OK",
+                        confirmButtonColor: "#3085d6"
                     }).then(() => {
+                        // setelah alert ditutup, ubah otomatis ke nilai minimal order
                         qtyInput.value = minOrder;
-                        qtyInput.dispatchEvent(new Event('change', {
-                            bubbles: true
-                        })); // 🔥 trigger update ke UI
-                    });
-
-                    return false;
-                }
-
-                // 🔹 READY STOCK: minimal harus >= min order
-                if (productStatus !== 'preorder' && qty < minOrder) {
-                    e.preventDefault();
-                    e.stopImmediatePropagation();
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Minimal Order',
-                        text: `Minimal pembelian untuk produk ini adalah ${minOrder} pcs.`,
-                        confirmButtonColor: '#3085d6',
-                        confirmButtonText: 'Oke, saya ubah'
-                    }).then(() => {
-                        qtyInput.value = minOrder;
-                        qtyInput.dispatchEvent(new Event('change', {
-                            bubbles: true
-                        })); // 🔥 pastikan update UI juga
                     });
                     return false;
                 }
 
-                // ✅ Lolos validasi, lanjutkan add-to-cart normal
-                return true;
             });
         });
     </script>
@@ -218,22 +201,20 @@ add_action('wp_footer', function () {
 });
 
 
-
-// 🔸 Validasi backend WooCommerce
+// 5️⃣ Validasi Minimal Order di Backend
 add_filter('woocommerce_add_to_cart_validation', function ($passed, $product_id, $quantity) {
-    $min_order = (int) get_post_meta($product_id, '_minimal_order', true);
     $status    = get_post_meta($product_id, '_product_status', true);
+    $min_order = (int) get_post_meta($product_id, '_minimal_order', true);
 
-    if ($status === 'preorder' && $quantity != $min_order) {
-        wc_add_notice("Untuk produk Pre-Order, pembelian harus tepat {$min_order} pcs.", 'error');
-        return false;
+    // ✅ Hanya validasi untuk produk Pre-Order
+    if ($status === 'preorder' && $min_order > 0) {
+        if ($quantity != $min_order) {
+            wc_add_notice("Untuk produk Pre-Order, pembelian harus tepat {$min_order} pcs.", 'error');
+            return false;
+        }
     }
 
-    if ($quantity < $min_order) {
-        wc_add_notice("Minimal pembelian untuk produk ini adalah {$min_order} pcs.", 'error');
-        return false;
-    }
-
+    // 🟢 Ready Stock bebas, tidak divalidasi
     return $passed;
 }, 10, 3);
 
@@ -244,15 +225,96 @@ add_filter('woocommerce_add_to_cart_validation', function ($passed, $product_id,
 // =====================================================
 add_action('woocommerce_single_product_summary', function () {
     global $product;
-    $url = urlencode(get_permalink($product->get_id()));
-    $title = urlencode($product->get_name());
+    $url        = urlencode(get_permalink($product->get_id()));
+    $title      = urlencode($product->get_name());
+    $share_link = get_permalink($product->get_id());
+?>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-papmT/q0jw7q+Tu+5m7OZtY4+1ZylC7Y6El3FZBzj+bQvZB6iGCuI94hNlzPsmzCckFi13Wrk8q4N8/XX8gNw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
-    echo '<div class="product-share" style="margin-top:20px;font-size:15px;">';
-    echo '<strong>Bagikan Produk:</strong> ';
-    echo '<a href="https://wa.me/?text=' . $title . '%20' . $url . '" target="_blank" style="margin-right:10px;text-decoration:none;color:#25D366;font-weight:600;">📱 WhatsApp</a>';
-    echo '<a href="#" onclick="navigator.clipboard.writeText(\'' . esc_js(get_permalink($product->get_id())) . '\'); Swal.fire({icon:\'success\', title:\'Tersalin!\', text:\'Link produk disalin ke clipboard!\', timer:1500, showConfirmButton:false}); return false;" style="text-decoration:none;color:#0073aa;font-weight:600;">🔗 Salin Link</a>';
-    echo '</div>';
+    <style>
+        .product-share {
+            margin-top: 25px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .product-share strong {
+            font-weight: 600;
+            color: #111827;
+            margin-right: 8px;
+            font-size: 15px;
+        }
+
+        .product-share a {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            font-size: 18px;
+            color: #fff !important;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .product-share a.whatsapp {
+            background: #25D366;
+        }
+
+        .product-share a.copylink {
+            background: #2563eb;
+        }
+
+        .product-share a:hover {
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.15);
+        }
+
+        .product-share a i {
+            pointer-events: none;
+        }
+    </style>
+
+    <div class="product-share">
+        <strong>Bagikan:</strong>
+
+        <a href="https://wa.me/?text=<?php echo $title . '%20' . $url; ?>"
+            target="_blank"
+            class="whatsapp"
+            title="Bagikan ke WhatsApp">
+            <i class="fa-brands fa-whatsapp"></i>
+        </a>
+
+        <a href="#"
+            class="copylink"
+            title="Salin tautan produk"
+            onclick="navigator.clipboard.writeText('<?php echo esc_js($share_link); ?>');
+            Swal.fire({
+                icon: 'success',
+                title: 'Tautan Disalin!',
+                text: 'Link produk telah disalin ke clipboard 🎉',
+                timer: 1600,
+                showConfirmButton: false
+            });
+            return false;">
+            <i class="fa-solid fa-link"></i>
+        </a>
+    </div>
+<?php
 }, 40);
+
+// Pastikan SweetAlert2 aktif di single product
+add_action('wp_footer', function () {
+    if (!is_product()) return;
+?>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<?php
+});
 
 
 // =====================================================
@@ -525,12 +587,15 @@ add_filter('woocommerce_update_cart_validation', function ($passed, $cart_item_k
     return $passed;
 }, 10, 4);
 
-
 // =====================================================
 // ✅ Gabungan: Filter Ekspedisi Sesuai Produk + Mode Preorder
 // =====================================================
 // --- C) Saat semua item preorder, kembalikan WC_Shipping_Rate yang benar
 add_filter('woocommerce_package_rates', function ($rates, $package) {
+    if (empty($rates) || !is_array($rates)) {
+        return $rates;
+    }
+
     $allowed_shipping = [];
     $all_preorder = true;
     $has_preorder = false;
@@ -540,8 +605,11 @@ add_filter('woocommerce_package_rates', function ($rates, $package) {
         $status = get_post_meta($product_id, '_product_status', true);
         $ekspedisi_str = get_post_meta($product_id, '_ekspedisi', true);
 
-        if ($status !== 'preorder') $all_preorder = false;
-        if ($status === 'preorder') $has_preorder = true;
+        if ($status !== 'preorder') {
+            $all_preorder = false;
+        } else {
+            $has_preorder = true;
+        }
 
         if ($ekspedisi_str) {
             $list = array_map('trim', explode(',', strtolower($ekspedisi_str)));
@@ -549,23 +617,46 @@ add_filter('woocommerce_package_rates', function ($rates, $package) {
         }
     }
 
+    // 🔹 Semua produk preorder → return WC_Shipping_Rate object
     if ($all_preorder) {
-        // buat instance WC_Shipping_Rate
-        $rate = new WC_Shipping_Rate('preorder_shipping', '🚚 Pre-Order Shipping (Rp 0 – Ongkir menyusul)', 0, array(), 'preorder_shipping');
-        return array('preorder_shipping' => $rate);
+        $rate_id = 'preorder_shipping';
+        $preorder_rate = new WC_Shipping_Rate(
+            $rate_id, // id unik rate
+            '🚚 Pre-Order Shipping (Rp 0 – Ongkir menyusul)', // label
+            0, // cost
+            [], // taxes
+            'preorder_shipping' // method_id
+        );
+
+        // Pastikan hasil return sesuai format expected
+        return [$rate_id => $preorder_rate];
     }
 
+    // 🔹 Campuran preorder + ready stock
     if ($has_preorder && !$all_preorder) {
         wc_clear_notices();
         wc_add_notice('⚠️ Keranjang Anda berisi produk <strong>Pre-Order</strong> dan <strong>Ready Stock</strong>. Pengiriman bisa terpisah.', 'notice');
     }
 
+    // 🔹 Filter ekspedisi berdasarkan meta produk
     if (!empty($allowed_shipping)) {
         $allowed_shipping = array_unique($allowed_shipping);
-        foreach ($rates as $id => $rate) {
-            if (! ($rate instanceof WC_Shipping_Rate)) continue;
-            $label = strtolower($rate->label ?? '');
-            $method = strtolower($rate->method_id ?? '');
+
+        foreach ($rates as $key => $rate) {
+            $label = '';
+            $method = '';
+
+            if (is_object($rate) && $rate instanceof WC_Shipping_Rate) {
+                $label = strtolower($rate->get_label());
+                $method = strtolower($rate->get_method_id());
+            } elseif (is_object($rate)) {
+                $label = strtolower($rate->label ?? '');
+                $method = strtolower($rate->method_id ?? '');
+            } elseif (is_array($rate)) {
+                $label = strtolower($rate['label'] ?? '');
+                $method = strtolower($rate['method_id'] ?? '');
+            }
+
             $ok = false;
             foreach ($allowed_shipping as $eksp) {
                 if (strpos($label, $eksp) !== false || strpos($method, $eksp) !== false) {
@@ -573,7 +664,10 @@ add_filter('woocommerce_package_rates', function ($rates, $package) {
                     break;
                 }
             }
-            if (!$ok) unset($rates[$id]);
+
+            if (!$ok) {
+                unset($rates[$key]);
+            }
         }
     }
 
@@ -583,3 +677,107 @@ add_filter('woocommerce_package_rates', function ($rates, $package) {
 
     return $rates;
 }, 20, 2);
+
+// 🔔 10️⃣ Redirect WhatsApp Otomatis untuk Produk Pre-Order
+add_action('woocommerce_thankyou', function ($order_id) {
+    if (!$order_id) return;
+
+    $order = wc_get_order($order_id);
+    if (!$order) return;
+
+    $has_preorder = false;
+    foreach ($order->get_items() as $item) {
+        $status = get_post_meta($item->get_product_id(), '_product_status', true);
+        if ($status === 'preorder') {
+            $has_preorder = true;
+            break;
+        }
+    }
+
+    if (!$has_preorder) return;
+
+    // 🔹 Nomor WhatsApp admin dari plugin Floating WhatsApp Chat
+    $wa_admin = get_option('fwc_whatsapp_number');
+    if ($wa_admin) {
+        $wa_admin = preg_replace('/^0/', '62', $wa_admin);
+    }
+
+    // 🔹 Nomor WhatsApp customer dari checkout
+    $billing_phone = $order->get_billing_phone();
+    $wa_user = preg_replace('/[^0-9]/', '', $billing_phone); // hanya angka
+    if (strpos($wa_user, '0') === 0) {
+        $wa_user = '62' . substr($wa_user, 1);
+    }
+
+    // 🧾 Ambil data order
+    $billing_first = $order->get_billing_first_name();
+    $billing_last  = $order->get_billing_last_name();
+    $billing_addr  = $order->get_billing_address_1();
+    $billing_city  = $order->get_billing_city();
+    $billing_state = $order->get_billing_state();
+    $billing_post  = $order->get_billing_postcode();
+    $billing_email = $order->get_billing_email();
+    $shipping_note = $order->get_customer_note();
+    $total = wp_strip_all_tags(wc_price($order->get_total()));
+    $shipping_method = wp_strip_all_tags($order->get_shipping_method());
+
+    // 🛍️ Daftar produk
+    $items_text = "";
+    foreach ($order->get_items() as $item) {
+        $product_name = $item->get_name();
+        $qty = $item->get_quantity();
+        $subtotal = wp_strip_all_tags(wc_price($item->get_subtotal()));
+        $items_text .= "• {$product_name} × {$qty} ({$subtotal})%0A";
+    }
+
+    // 🧾 Pesan untuk WhatsApp (tanpa emoji rusak)
+    $message = "
+📦 *Pesanan Pre-Order Baru*%0A
+==============================%0A
+*Nama:* {$billing_first} {$billing_last}%0A
+*Alamat:* {$billing_addr}%0A
+*Kota:* {$billing_city}%0A
+*Provinsi:* {$billing_state}%0A
+*Kode Pos:* {$billing_post}%0A
+*No HP:* {$billing_phone}%0A
+*Email:* {$billing_email}%0A
+%0A==============================%0A
+*Produk Dipesan:*%0A{$items_text}
+==============================%0A
+*Total:* {$total}%0A
+*Metode Pengiriman:* {$shipping_method}%0A
+*Catatan:* " . ($shipping_note ?: '-') . "%0A
+==============================%0A
+🕐 Pesanan ini dilakukan via situs: " . get_bloginfo('name') . "%0A";
+
+    $encoded_msg = rawurlencode($message);
+
+    // 🔹 Buat dua link WhatsApp (Admin & Customer)
+    $wa_url_admin = "https://wa.me/{$wa_admin}?text={$encoded_msg}";
+    $wa_url_user  = "https://wa.me/{$wa_user}?text=" . rawurlencode("
+Halo {$billing_first}! 👋%0A
+Terima kasih telah melakukan *Pre-Order* di *" . get_bloginfo('name') . "*.%0A
+Pesanan kamu sudah kami terima dengan detail berikut:%0A
+==============================%0A
+{$items_text}
+==============================%0A
+Total: {$total}%0A
+Metode Pengiriman: {$shipping_method}%0A
+Kami akan menghubungi kamu kembali jika ada info lebih lanjut.%0A
+🙏 Terima kasih!
+");
+
+    // 🔹 Redirect otomatis ke WA Admin & buka tab baru untuk user
+    echo "
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(function() {
+            window.open('{$wa_url_admin}', '_blank');
+        }, 400);
+        setTimeout(function() {
+            window.open('{$wa_url_user}', '_blank');
+        }, 1200);
+    });
+    </script>
+    ";
+});
