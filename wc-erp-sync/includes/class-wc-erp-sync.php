@@ -305,6 +305,13 @@ class WC_ERP_Sync
             'callback' => [$this, 'handle_product_sync'],
             'permission_callback' => [$this, 'check_api_key_permission'],
         ]);
+        // === Endpoint detail produk berdasarkan SKU_ERP ===
+        register_rest_route('erp/v1', '/product/(?P<sku_erp>[a-zA-Z0-9_-]+)', [
+            'methods' => 'GET',
+            'callback' => [$this, 'get_product_by_sku_erp'],
+            'permission_callback' => [$this, 'check_api_key_permission'],
+        ]);
+
 
         // === Update produk dari ERP ke WooCommerce ===
         register_rest_route('erp/v1', '/product-sync', [
@@ -314,7 +321,7 @@ class WC_ERP_Sync
         ]);
 
         // === Hapus produk berdasarkan SKU ERP ===
-        register_rest_route('erp/v1', '/product-sync/(?P<sku_erp>[a-zA-Z0-9_-]+)', [
+        register_rest_route('erp/v1', '/product-delete/(?P<sku_erp>[a-zA-Z0-9_-]+)', [
             'methods' => 'DELETE',
             'callback' => [$this, 'delete_product_from_erp'],
             'permission_callback' => [$this, 'check_api_key_permission'],
@@ -401,6 +408,63 @@ class WC_ERP_Sync
                         'responses' => [
                             '200' => ['description' => 'Daftar produk berhasil diambil'],
                             '401' => ['description' => 'API key tidak valid'],
+                        ]
+                    ]
+                ],
+
+                '/product/{sku_erp}' => [
+                    'get' => [
+                        'summary' => 'Ambil Detail Produk Berdasarkan SKU ERP',
+                        'description' => 'ERP dapat mengambil detail lengkap produk WooCommerce berdasarkan SKU ERP.',
+                        'parameters' => [
+                            [
+                                'name' => 'sku_erp',
+                                'in' => 'path',
+                                'required' => true,
+                                'schema' => ['type' => 'string'],
+                                'description' => 'SKU produk yang digunakan oleh sistem ERP'
+                            ],
+                            [
+                                'name' => 'X-ERP-KEY',
+                                'in' => 'header',
+                                'required' => true,
+                                'schema' => ['type' => 'string'],
+                                'description' => 'API key ERP untuk autentikasi'
+                            ]
+                        ],
+                        'responses' => [
+                            '200' => [
+                                'description' => 'Detail produk berhasil diambil',
+                                'content' => [
+                                    'application/json' => [
+                                        'schema' => [
+                                            'type' => 'object',
+                                            'properties' => [
+                                                'id' => ['type' => 'integer'],
+                                                'sku' => ['type' => 'string'],
+                                                'sku_erp' => ['type' => 'string'],
+                                                'name' => ['type' => 'string'],
+                                                'price' => ['type' => 'string'],
+                                                'regular_price' => ['type' => 'string'],
+                                                'sale_price' => ['type' => 'string'],
+                                                'stock' => ['type' => 'integer'],
+                                                'status' => ['type' => 'string'],
+                                                'categories' => [
+                                                    'type' => 'array',
+                                                    'items' => ['type' => 'string']
+                                                ],
+                                                'description' => ['type' => 'string'],
+                                                'short_description' => ['type' => 'string'],
+                                                'image_url' => ['type' => 'string'],
+                                                'created_at' => ['type' => 'string', 'format' => 'date-time'],
+                                                'updated_at' => ['type' => 'string', 'format' => 'date-time']
+                                            ]
+                                        ]
+                                    ]
+                                ]
+                            ],
+                            '404' => ['description' => 'Produk tidak ditemukan'],
+                            '401' => ['description' => 'API key tidak valid']
                         ]
                     ]
                 ],
@@ -599,6 +663,63 @@ class WC_ERP_Sync
         return rest_ensure_response($data);
     }
 
+    public function get_product_by_sku_erp($request)
+    {
+        $sku_erp = sanitize_text_field($request['sku_erp']);
+
+        // 🔍 Coba cari produk berdasarkan meta _sku_erp
+        $product_query = new WP_Query([
+            'post_type'  => 'product',
+            'meta_query' => [
+                [
+                    'key'   => '_sku_erp',
+                    'value' => $sku_erp,
+                    'compare' => '='
+                ]
+            ],
+            'posts_per_page' => 1,
+            'fields' => 'ids'
+        ]);
+
+        if (empty($product_query->posts)) {
+            return new WP_Error('not_found', 'Product not found', ['status' => 404]);
+        }
+
+        $product_id = $product_query->posts[0];
+        $wc_product = wc_get_product($product_id);
+
+        if (!$wc_product) {
+            return new WP_Error('not_found', 'Invalid product ID', ['status' => 404]);
+        }
+
+        // Ambil kategori
+        $categories = wp_get_post_terms($product_id, 'product_cat', ['fields' => 'names']);
+        // Ambil gambar utama
+        $image_id = $wc_product->get_image_id();
+        $image_url = $image_id ? wp_get_attachment_url($image_id) : null;
+
+        $data = [
+            'id'        => $product_id,
+            'sku'       => $wc_product->get_sku(),
+            'sku_erp'   => get_post_meta($product_id, '_sku_erp', true),
+            'name'      => $wc_product->get_name(),
+            'price'     => $wc_product->get_price(),
+            'regular_price' => $wc_product->get_regular_price(),
+            'sale_price' => $wc_product->get_sale_price(),
+            'stock'     => $wc_product->get_stock_quantity(),
+            'status'    => $wc_product->get_status(),
+            'categories' => $categories,
+            'description' => wp_strip_all_tags($wc_product->get_description()),
+            'short_description' => wp_strip_all_tags($wc_product->get_short_description()),
+            'image_url' => $image_url,
+            'created_at' => get_the_date('Y-m-d H:i:s', $product_id),
+            'updated_at' => get_the_modified_date('Y-m-d H:i:s', $product_id),
+        ];
+
+        return rest_ensure_response($data);
+    }
+
+
 
     public function get_orders_list($request)
     {
@@ -731,46 +852,120 @@ class WC_ERP_Sync
     public function handle_product_sync($request)
     {
         $params = $request->get_json_params();
+
         if (empty($params['sku_erp']) || empty($params['name'])) {
             return new WP_Error('missing_data', 'Missing SKU_ERP or Name', ['status' => 400]);
         }
 
-        $product_id = wc_get_product_id_by_sku($params['sku_erp']);
+        $sku_erp  = sanitize_text_field($params['sku_erp']);
+        $name     = sanitize_text_field($params['name']);
+        $price    = isset($params['price']) ? floatval($params['price']) : null;
+        $stock    = isset($params['stock']) ? intval($params['stock']) : null;
+
+        // Coba cari produk berdasarkan _sku_erp
+        $product_id = wc_get_product_id_by_sku($sku_erp);
+
+        // Jika tidak ditemukan, cari berdasarkan meta _sku_erp
+        if (!$product_id) {
+            $product_query = new WP_Query([
+                'post_type'  => 'product',
+                'meta_query' => [
+                    [
+                        'key'   => '_sku_erp',
+                        'value' => $sku_erp,
+                        'compare' => '='
+                    ]
+                ],
+                'posts_per_page' => 1,
+                'fields' => 'ids'
+            ]);
+            if (!empty($product_query->posts)) {
+                $product_id = $product_query->posts[0];
+            }
+        }
+
+        // === Jika produk sudah ada, update ===
         if ($product_id) {
             wp_update_post([
-                'ID' => $product_id,
-                'post_title' => sanitize_text_field($params['name']),
+                'ID'         => $product_id,
+                'post_title' => $name,
             ]);
-        } else {
+
+            if ($price !== null) update_post_meta($product_id, '_price', $price);
+            if ($stock !== null) update_post_meta($product_id, '_stock', $stock);
+
+            // Update keduanya agar sinkron
+            update_post_meta($product_id, '_sku', $sku_erp);
+            update_post_meta($product_id, '_sku_erp', $sku_erp);
+
+            $status = 'updated';
+        }
+        // === Jika produk belum ada, buat baru ===
+        else {
             $product_id = wp_insert_post([
-                'post_title'  => sanitize_text_field($params['name']),
+                'post_title'  => $name,
                 'post_type'   => 'product',
                 'post_status' => 'publish',
             ]);
-            update_post_meta($product_id, '_sku', sanitize_text_field($params['sku_erp']));
+
+            update_post_meta($product_id, '_sku', $sku_erp);
+            update_post_meta($product_id, '_sku_erp', $sku_erp);
+            if ($price !== null) update_post_meta($product_id, '_price', $price);
+            if ($stock !== null) update_post_meta($product_id, '_stock', $stock);
+
+            $status = 'created';
         }
 
-        return ['success' => true, 'product_id' => $product_id];
+        return [
+            'success'     => true,
+            'status'      => $status,
+            'product_id'  => $product_id,
+            'sku_erp'     => $sku_erp,
+        ];
     }
+
 
     /**
      * 🧩 UPDATE Produk (ERP -> WooCommerce)
      */
     public function update_product_from_erp($request)
     {
-        $params = $request->get_json_params();
+        $params  = $request->get_json_params();
         $sku_erp = sanitize_text_field($params['sku_erp'] ?? '');
+
         if (empty($sku_erp)) {
             return new WP_Error('missing_sku', 'Missing sku_erp', ['status' => 400]);
         }
 
+        // 🔍 Cari berdasarkan SKU WooCommerce dulu
         $product_id = wc_get_product_id_by_sku($sku_erp);
+
+        // Jika tidak ditemukan, cari di meta _sku_erp
+        if (!$product_id) {
+            $product_query = new WP_Query([
+                'post_type'  => 'product',
+                'meta_query' => [
+                    [
+                        'key'   => '_sku_erp',
+                        'value' => $sku_erp,
+                        'compare' => '='
+                    ]
+                ],
+                'posts_per_page' => 1,
+                'fields' => 'ids'
+            ]);
+            if (!empty($product_query->posts)) {
+                $product_id = $product_query->posts[0];
+            }
+        }
+
+        // 🚨 Kalau tetap tidak ketemu
         if (!$product_id) {
             return new WP_Error('not_found', 'Product not found', ['status' => 404]);
         }
 
+        // === Update post title (nama produk) ===
         $update_data = [];
-
         if (!empty($params['name'])) {
             $update_data['post_title'] = sanitize_text_field($params['name']);
         }
@@ -780,23 +975,31 @@ class WC_ERP_Sync
             wp_update_post($update_data);
         }
 
+        // === Update harga ===
         if (isset($params['price'])) {
-            update_post_meta($product_id, '_price', floatval($params['price']));
-            update_post_meta($product_id, '_regular_price', floatval($params['price']));
+            $price = floatval($params['price']);
+            update_post_meta($product_id, '_price', $price);
+            update_post_meta($product_id, '_regular_price', $price);
         }
 
+        // === Update stok ===
         if (isset($params['stock'])) {
-            update_post_meta($product_id, '_stock', intval($params['stock']));
-            wc_update_product_stock_status($product_id, intval($params['stock']) > 0 ? 'instock' : 'outofstock');
+            $stock = intval($params['stock']);
+            update_post_meta($product_id, '_stock', $stock);
+            wc_update_product_stock_status($product_id, $stock > 0 ? 'instock' : 'outofstock');
         }
+
+        // === Update SKU ERP agar sinkron ===
+        update_post_meta($product_id, '_sku', $sku_erp);
+        update_post_meta($product_id, '_sku_erp', $sku_erp);
 
         return rest_ensure_response([
-            'success' => true,
-            'message' => 'Product updated successfully',
-            'product_id' => $product_id,
+            'success'     => true,
+            'message'     => 'Product updated successfully',
+            'product_id'  => $product_id,
+            'sku_erp'     => $sku_erp,
         ]);
     }
-
 
     /**
      * 🗑️ DELETE Produk (ERP -> WooCommerce)
@@ -804,15 +1007,28 @@ class WC_ERP_Sync
     public function delete_product_from_erp($request)
     {
         $sku_erp = sanitize_text_field($request['sku_erp']);
-        if (empty($sku_erp)) {
-            return new WP_Error('missing_sku', 'Missing SKU ERP', ['status' => 400]);
-        }
 
-        $product_id = wc_get_product_id_by_sku($sku_erp);
-        if (!$product_id) {
+        // 🔍 Cari produk berdasarkan meta _sku_erp
+        $product_query = new WP_Query([
+            'post_type'  => 'product',
+            'meta_query' => [
+                [
+                    'key'   => '_sku_erp',
+                    'value' => $sku_erp,
+                    'compare' => '='
+                ]
+            ],
+            'posts_per_page' => 1,
+            'fields' => 'ids'
+        ]);
+
+        if (empty($product_query->posts)) {
             return new WP_Error('not_found', 'Product not found', ['status' => 404]);
         }
 
+        $product_id = $product_query->posts[0];
+
+        // 🗑️ Hapus produk
         $deleted = wp_delete_post($product_id, true);
 
         if (!$deleted) {
@@ -823,8 +1039,10 @@ class WC_ERP_Sync
             'success' => true,
             'message' => 'Product deleted successfully',
             'deleted_id' => $product_id,
+            'sku_erp' => $sku_erp
         ]);
     }
+
 
 
     public function send_order_to_erp($order_id)
