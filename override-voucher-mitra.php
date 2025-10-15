@@ -314,6 +314,19 @@ add_action('wp_head', function () {
                 font-size: 0.9em !important;
             }
         }
+
+        .mitra-harga-diskon {
+            font-size: 1.4em;
+            font-weight: 700;
+            color: #3A0BF4;
+        }
+
+        .mitra-harga-diskon+small {
+            display: block;
+            color: #777;
+            font-size: 0.9em;
+            margin-top: 4px;
+        }
     </style>
     <?php
 });
@@ -397,3 +410,45 @@ add_action('wp_footer', function () {
 <?php
     endif;
 });
+
+/**
+ * 8️⃣ Tampilkan harga khusus Mitra di halaman single product & shop list
+ * Menampilkan harga coret (harga normal) dan harga setelah diskon mitra
+ */
+add_filter('woocommerce_get_price_html', function ($price_html, $product) {
+    if (!is_user_logged_in()) return $price_html;
+
+    $user = wp_get_current_user();
+    if (!in_array('mitra', (array) $user->roles)) return $price_html;
+
+    // Ambil harga normal
+    $regular_price = (float) $product->get_regular_price();
+    if ($regular_price <= 0) return $price_html;
+
+    // Cari kupon mitra aktif untuk user ini (kalau ada)
+    $applied_coupons = WC()->cart ? WC()->cart->get_applied_coupons() : [];
+    $voucher_percent = 0;
+
+    // Jika ada kupon aktif, baca diskon mitra dari meta
+    foreach ($applied_coupons as $code) {
+        $coupon = new WC_Coupon($code);
+        if ($coupon && strpos(strtolower($coupon->get_code()), 'mitra') !== false) {
+            $voucher_percent = (float) get_post_meta($coupon->get_id(), '_mitra_discount', true);
+            if ($voucher_percent > 0) break;
+        }
+    }
+
+    // Jika belum ada kupon di cart, gunakan default (misal 25%) agar tampilan tetap ada
+    if ($voucher_percent <= 0) {
+        $voucher_percent = 25;
+    }
+
+    // Hitung harga setelah diskon
+    $harga_setelah_diskon = $regular_price - ($regular_price * ($voucher_percent / 100));
+
+    // Format tampilan harga (pakai wc_price)
+    $harga_html = '<span class="mitra-harga-diskon">' . wc_price($harga_setelah_diskon) . '</span>';
+    $harga_html .= ' <small><del>' . wc_price($regular_price) . '</del> (Diskon Mitra ' . esc_html($voucher_percent) . '%)</small>';
+
+    return $harga_html;
+}, 20, 2);
