@@ -226,28 +226,27 @@ function woo_add_custom_cart_button_style()
     wp_add_inline_style('woo-custom-buttons-style', $custom_css);
 }
 
-function custom_enqueue_fontawesome()
-{
+
+function custom_enqueue_fontawesome_local() {
     wp_enqueue_style(
-        'font-awesome-cdn',
-        'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css',
+        'font-awesome-local',
+        plugin_dir_url(__FILE__) . 'woo-yard-converter-assets/fontawesome.min.css',
         array(),
         '6.7.2'
     );
 }
-add_action('wp_enqueue_scripts', 'custom_enqueue_fontawesome');
+add_action('wp_enqueue_scripts', 'custom_enqueue_fontawesome_local');
 
-function custom_enqueue_fontawesome_scripts()
-{
+function custom_enqueue_fontawesome_scripts_local() {
     wp_enqueue_script(
-        'font-awesome-js',
-        'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/js/all.min.js',
+        'font-awesome-js-local',
+        plugin_dir_url(__FILE__) . 'woo-yard-converter-assets/fontawesome.min.js',
         array(),
         '6.7.2',
         true
     );
 }
-add_action('wp_enqueue_scripts', 'custom_enqueue_fontawesome_scripts');
+add_action('wp_enqueue_scripts', 'custom_enqueue_fontawesome_scripts_local');
 
 add_action('woocommerce_after_add_to_cart_button', 'woo_add_beli_langsung_button', 5);
 function woo_add_beli_langsung_button()
@@ -541,27 +540,24 @@ function woo_register_yard_converter_styles()
     wp_add_inline_style('woo-yard-converter', $css);
 }
 
-function load_sweetalert_in_head()
-{
+
+function load_sweetalert_local_in_head() {
     if (is_product()) {
         echo '
-        <!-- SweetAlert2 CDN -->
-        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+        <script src="' . plugin_dir_url(__FILE__) . 'woo-yard-converter-assets/sweetalert2.min.js"></script>
         ';
     }
 }
+add_action('wp_head', 'load_sweetalert_local_in_head');
 
-add_action('wp_head', 'load_sweetalert_in_head');
-
-function load_sweetalert_css_in_head()
-{
+function load_sweetalert_local_css_in_head() {
     if (is_product()) {
         echo '
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
+        <link rel="stylesheet" href="' . plugin_dir_url(__FILE__) . 'woo-yard-converter-assets/sweetalert2.min.css" />
         ';
     }
 }
-add_action('wp_head', 'load_sweetalert_css_in_head');
+add_action('wp_head', 'load_sweetalert_local_css_in_head');
 
 add_action('woocommerce_before_add_to_cart_quantity', 'woo_converter_input_fields_conditional', 5);
 function woo_converter_input_fields_conditional()
