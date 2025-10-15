@@ -227,7 +227,8 @@ function woo_add_custom_cart_button_style()
 }
 
 
-function custom_enqueue_fontawesome_local() {
+function custom_enqueue_fontawesome_local()
+{
     wp_enqueue_style(
         'font-awesome-local',
         plugin_dir_url(__FILE__) . 'woo-yard-converter-assets/fontawesome.min.css',
@@ -235,9 +236,10 @@ function custom_enqueue_fontawesome_local() {
         '6.7.2'
     );
 }
-add_action('wp_enqueue_scripts', 'custom_enqueue_fontawesome_local');
+add_action('wp_enqueue_scripts', 'custom_enqueue_fontawesome_local', 1);
 
-function custom_enqueue_fontawesome_scripts_local() {
+function custom_enqueue_fontawesome_scripts_local()
+{
     wp_enqueue_script(
         'font-awesome-js-local',
         plugin_dir_url(__FILE__) . 'woo-yard-converter-assets/fontawesome.min.js',
@@ -246,7 +248,7 @@ function custom_enqueue_fontawesome_scripts_local() {
         true
     );
 }
-add_action('wp_enqueue_scripts', 'custom_enqueue_fontawesome_scripts_local');
+add_action('wp_enqueue_scripts', 'custom_enqueue_fontawesome_scripts_local', 1);
 
 add_action('woocommerce_after_add_to_cart_button', 'woo_add_beli_langsung_button', 5);
 function woo_add_beli_langsung_button()
@@ -293,7 +295,7 @@ function woo_add_beli_langsung_button()
     // HTML tombol WA
     echo '<div class="woo-btn-wrapper">';
     echo '<a href="#" data-wa="' . esc_attr($nomor_wa) . '" class="button beli-langsung-wa" style="background-color: #25D366; color: white; padding: 20px 25px; border-radius: 4px; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
-            <i class="fab fa-whatsapp" style="font-size: 18px; color: white;"></i>
+            <i class="fa-brands fa-whatsapp" style="font-size: 18px; color: white;"></i>
             Beli Langsung
         </a>';
     echo '</div>';
@@ -541,23 +543,26 @@ function woo_register_yard_converter_styles()
 }
 
 
-function load_sweetalert_local_in_head() {
-    if (is_product()) {
-        echo '
-        <script src="' . plugin_dir_url(__FILE__) . 'woo-yard-converter-assets/sweetalert2.min.js"></script>
-        ';
-    }
-}
-add_action('wp_head', 'load_sweetalert_local_in_head');
 
-function load_sweetalert_local_css_in_head() {
+function woo_enqueue_sweetalert2_local()
+{
     if (is_product()) {
-        echo '
-        <link rel="stylesheet" href="' . plugin_dir_url(__FILE__) . 'woo-yard-converter-assets/sweetalert2.min.css" />
-        ';
+        wp_enqueue_script(
+            'sweetalert2-local',
+            plugin_dir_url(__FILE__) . 'woo-yard-converter-assets/sweetalert2.min.js',
+            array(),
+            '11.0.0',
+            true
+        );
+        wp_enqueue_style(
+            'sweetalert2-local-css',
+            plugin_dir_url(__FILE__) . 'woo-yard-converter-assets/sweetalert2.min.css',
+            array(),
+            '11.0.0'
+        );
     }
 }
-add_action('wp_head', 'load_sweetalert_local_css_in_head');
+add_action('wp_enqueue_scripts', 'woo_enqueue_sweetalert2_local', 1);
 
 add_action('woocommerce_before_add_to_cart_quantity', 'woo_converter_input_fields_conditional', 5);
 function woo_converter_input_fields_conditional()
@@ -1675,7 +1680,7 @@ function custom_insert_call_to_us_button_php()
            data-link="' . esc_url($product_link) . '"
            data-site="' . esc_attr($site_name) . '"
            target="_blank">
-           <i class="fab fa-whatsapp"></i>
+           <i class="fa-brands fa-whatsapp"></i>
            &nbsp;Call To Us
         </a>
 

@@ -1,9 +1,8 @@
 <?php
 
-
 /**
  * Plugin Name: Override Voucher Mitra (v3.3.3 AutoFix)
- * Description: Versi otomatis yang mendeteksi kupon mitra tanpa perlu ubah tipe kupon di dashboard. Tampilkan breakdown harga Mitra, DP, Pelunasan, dan simpan meta order.
+ * Description: Versi otomatis yang mendeteksi kupon mitra tanpa perlu ubah tipe kupon di dashboard. Tampilkan breakdown harga Mitra, DP, Pelunasan, dan simpan meta order, beri tahu pada dadang.
  * Version: 3.2
  * Author: Puji Dev From Tokoweb <pujiermanto@gmail.com> | AKA Dadang Sukanagara | Alias Sugandi Hieroglyph
  */
@@ -215,9 +214,14 @@ add_action('woocommerce_cart_calculate_fees', function ($cart) {
 // -----------------------------
 add_action('woocommerce_cart_totals_before_order_total', 'ovm_print_breakdown');
 add_action('woocommerce_review_order_before_order_total', 'ovm_print_breakdown');
-
 function ovm_print_breakdown()
 {
+    // Hanya tampil untuk user dengan role "mitra"
+    $user = wp_get_current_user();
+    if (!in_array('mitra', (array) $user->roles)) {
+        return; // non-mitra tidak lihat breakdown mitra
+    }
+
     $raw_subtotal = WC()->session->get('ovm_raw_subtotal') ?: 0;
     $diskon_kupon = WC()->session->get('ovm_diskon_kupon') ?: 0;
     $diskon_mitra_auto = WC()->session->get('ovm_diskon_mitra_auto') ?: 0;
@@ -227,35 +231,27 @@ function ovm_print_breakdown()
     $pelunasan_amount = WC()->session->get('ovm_pelunasan_amount') ?: 0;
     $voucher_percent = WC()->session->get('ovm_voucher_percent') ?: 0;
 
-    // Subtotal (harga normal)
+    if ($raw_subtotal <= 0) return;
+
     echo '<tr class="custom-subtotal"><th>Subtotal</th><td>' . wc_price($raw_subtotal) . '</td></tr>';
 
-    // Diskon kupon mitra (ini sesuai C: dihitung dari subtotal normal)
     if ($diskon_kupon > 0) {
         echo '<tr class="custom-kupon-mitra"><th>Diskon Kupon Mitra (' . esc_html($voucher_percent) . '%)</th><td>–' . wc_price($diskon_kupon) . '</td></tr>';
     }
 
-    // Jika auto 50% diaktifkan (opsional), tampilkan baris Diskon Mitra
     if ($diskon_mitra_auto > 0) {
         echo '<tr class="custom-diskon-mitra-auto"><th>Diskon Mitra (50%)</th><td>–' . wc_price($diskon_mitra_auto) . '</td></tr>';
     }
 
-    // Ongkos kirim
     echo '<tr class="custom-shipping"><th>Ongkos Kirim</th><td>' . wc_price($shipping_total) . '</td></tr>';
-
-    // Total Tagihan Invoice (setelah potongan yang kita hitung)
     echo '<tr class="custom-total-invoice"><th><strong>Total Tagihan Invoice</strong></th><td><strong>' . wc_price($total_tagihan) . '</strong></td></tr>';
-
-    // DP & Pelunasan 50%
     echo '<tr class="custom-dp"><th>DP 50%</th><td>' . wc_price($dp_amount) . '</td></tr>';
     echo '<tr class="custom-pelunasan"><th>Pelunasan 50%</th><td>' . wc_price($pelunasan_amount) . '</td></tr>';
 
-    // Total Bayar (Checkout DP) -- menampilkan DP sebagai nilai yang harus dibayar saat checkout (sesuai request)
-    // Simpan juga ke session agar gateway dapat membaca.
     WC()->session->set('final_checkout_dp_amount', $dp_amount);
-
     echo '<tr class="custom-total-bayar"><th style="text-transform:uppercase;font-weight:800;">Total Bayar (Checkout DP)</th><td style="font-size:1.5em;font-weight:900;color:#3A0BF4;">' . wc_price($dp_amount) . '</td></tr>';
 }
+
 
 /**
  * 4b️⃣ Styling tambahan agar tampilan breakdown rapi di tabel WooCommerce
