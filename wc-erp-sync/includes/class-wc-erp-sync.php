@@ -319,6 +319,13 @@ class WC_ERP_Sync
             'callback' => [$this, 'delete_product_from_erp'],
             'permission_callback' => [$this, 'check_api_key_permission'],
         ]);
+
+        // === Informasi Toko WooCommerce ===
+        register_rest_route('erp/v1', '/store-info', [
+            'methods' => 'GET',
+            'callback' => [$this, 'get_store_info'],
+            'permission_callback' => [$this, 'check_api_key_permission'],
+        ]);
     }
 
     public function get_api_schema()
@@ -334,6 +341,52 @@ class WC_ERP_Sync
                 ['url' => esc_url_raw(rest_url('erp/v1'))],
             ],
             'paths' => [
+                '/store-info' => [
+                    'get' => [
+                        'summary' => 'Ambil Informasi Toko WooCommerce',
+                        'description' => 'Mengambil informasi umum toko seperti nama, alamat, nomor telepon, dan koordinat lokasi.',
+                        'parameters' => [[
+                            'name' => 'X-ERP-KEY',
+                            'in' => 'header',
+                            'required' => true,
+                            'schema' => ['type' => 'string'],
+                            'description' => 'API key ERP untuk autentikasi'
+                        ]],
+                        'responses' => [
+                            '200' => [
+                                'description' => 'Informasi toko berhasil diambil',
+                                'content' => [
+                                    'application/json' => [
+                                        'schema' => [
+                                            'type' => 'object',
+                                            'properties' => [
+                                                'success' => ['type' => 'boolean'],
+                                                'data' => [
+                                                    'type' => 'object',
+                                                    'properties' => [
+                                                        'store_name' => ['type' => 'string'],
+                                                        'store_url' => ['type' => 'string'],
+                                                        'store_email' => ['type' => 'string'],
+                                                        'address' => ['type' => 'string'],
+                                                        'address_2' => ['type' => 'string'],
+                                                        'city' => ['type' => 'string'],
+                                                        'postcode' => ['type' => 'string'],
+                                                        'country' => ['type' => 'string'],
+                                                        'phone' => ['type' => 'string'],
+                                                        'latitude' => ['type' => 'string'],
+                                                        'longitude' => ['type' => 'string']
+                                                    ]
+                                                ]
+                                            ]
+                                        ]
+                                    ]
+                                ]
+                            ],
+                            '401' => ['description' => 'API key tidak valid']
+                        ]
+                    ]
+                ],
+
                 '/products' => [
                     'get' => [
                         'summary' => 'Ambil Daftar Produk',
@@ -497,6 +550,29 @@ class WC_ERP_Sync
     // ==========================================================================
     // Handler api-docs
     // ==========================================================================
+    public function get_store_info($request)
+    {
+        $store_info = [
+            'store_name'   => get_bloginfo('name'),
+            'store_url'    => get_bloginfo('url'),
+            'store_email'  => get_bloginfo('admin_email'),
+            'address'      => get_option('woocommerce_store_address'),
+            'address_2'    => get_option('woocommerce_store_address_2'),
+            'city'         => get_option('woocommerce_store_city'),
+            'postcode'     => get_option('woocommerce_store_postcode'),
+            'country'      => get_option('woocommerce_default_country'),
+            'phone'        => get_option('woocommerce_store_phone'),
+            'latitude'     => get_option('woocommerce_store_latitude'),
+            'longitude'    => get_option('woocommerce_store_longitude'),
+        ];
+
+        return rest_ensure_response([
+            'success' => true,
+            'data'    => $store_info,
+        ]);
+    }
+
+
     public function get_products_list($request)
     {
         $args = [
