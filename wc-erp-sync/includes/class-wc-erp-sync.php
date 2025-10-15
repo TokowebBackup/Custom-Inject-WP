@@ -297,10 +297,26 @@ class WC_ERP_Sync
             'permission_callback' => [$this, 'check_api_key_permission'],
         ]);
 
+        // =====================================================================
         // Arah: ERP → WooCommerce
+        // =====================================================================
         register_rest_route('erp/v1', '/product-sync', [
             'methods' => 'POST',
             'callback' => [$this, 'handle_product_sync'],
+            'permission_callback' => [$this, 'check_api_key_permission'],
+        ]);
+
+        // === Update produk dari ERP ke WooCommerce ===
+        register_rest_route('erp/v1', '/product-sync', [
+            'methods' => 'PUT',
+            'callback' => [$this, 'update_product_from_erp'],
+            'permission_callback' => [$this, 'check_api_key_permission'],
+        ]);
+
+        // === Hapus produk berdasarkan SKU ERP ===
+        register_rest_route('erp/v1', '/product-sync/(?P<sku_erp>[a-zA-Z0-9_-]+)', [
+            'methods' => 'DELETE',
+            'callback' => [$this, 'delete_product_from_erp'],
             'permission_callback' => [$this, 'check_api_key_permission'],
         ]);
     }
@@ -311,8 +327,8 @@ class WC_ERP_Sync
             'openapi' => '3.0.1',
             'info' => [
                 'title' => 'WC ERP API',
-                'version' => '1.0.0',
-                'description' => 'Dokumentasi API integrasi WooCommerce & ERP',
+                'version' => '1.1.0',
+                'description' => 'Dokumentasi API integrasi WooCommerce & ERP (CRUD Produk + Orders)',
             ],
             'servers' => [
                 ['url' => esc_url_raw(rest_url('erp/v1'))],
@@ -381,8 +397,8 @@ class WC_ERP_Sync
 
                 '/product-sync' => [
                     'post' => [
-                        'summary' => 'Sinkronisasi Produk dari ERP ke WooCommerce',
-                        'description' => 'ERP mengirimkan data produk untuk ditambahkan atau diperbarui di WooCommerce.',
+                        'summary' => 'Tambah Produk dari ERP ke WooCommerce',
+                        'description' => 'ERP mengirimkan data produk baru ke WooCommerce.',
                         'parameters' => [[
                             'name' => 'X-ERP-KEY',
                             'in' => 'header',
@@ -407,8 +423,69 @@ class WC_ERP_Sync
                             ]
                         ],
                         'responses' => [
-                            '200' => ['description' => 'Produk berhasil disinkronkan'],
+                            '200' => ['description' => 'Produk berhasil ditambahkan'],
                             '400' => ['description' => 'Data tidak lengkap'],
+                            '401' => ['description' => 'API key tidak valid']
+                        ]
+                    ]
+                ],
+
+                '/product-update' => [
+                    'put' => [
+                        'summary' => 'Update Produk dari ERP ke WooCommerce',
+                        'description' => 'ERP memperbarui data produk yang sudah ada berdasarkan SKU ERP.',
+                        'parameters' => [[
+                            'name' => 'X-ERP-KEY',
+                            'in' => 'header',
+                            'required' => true,
+                            'schema' => ['type' => 'string']
+                        ]],
+                        'requestBody' => [
+                            'required' => true,
+                            'content' => [
+                                'application/json' => [
+                                    'schema' => [
+                                        'type' => 'object',
+                                        'properties' => [
+                                            'sku_erp' => ['type' => 'string'],
+                                            'name'    => ['type' => 'string'],
+                                            'price'   => ['type' => 'number'],
+                                            'stock'   => ['type' => 'integer']
+                                        ],
+                                        'required' => ['sku_erp']
+                                    ]
+                                ]
+                            ]
+                        ],
+                        'responses' => [
+                            '200' => ['description' => 'Produk berhasil diperbarui'],
+                            '404' => ['description' => 'Produk tidak ditemukan'],
+                            '401' => ['description' => 'API key tidak valid']
+                        ]
+                    ]
+                ],
+
+                '/product-delete/{sku_erp}' => [
+                    'delete' => [
+                        'summary' => 'Hapus Produk di WooCommerce dari ERP',
+                        'description' => 'ERP menghapus produk di WooCommerce berdasarkan SKU ERP.',
+                        'parameters' => [
+                            [
+                                'name' => 'sku_erp',
+                                'in' => 'path',
+                                'required' => true,
+                                'schema' => ['type' => 'string']
+                            ],
+                            [
+                                'name' => 'X-ERP-KEY',
+                                'in' => 'header',
+                                'required' => true,
+                                'schema' => ['type' => 'string']
+                            ]
+                        ],
+                        'responses' => [
+                            '200' => ['description' => 'Produk berhasil dihapus'],
+                            '404' => ['description' => 'Produk tidak ditemukan'],
                             '401' => ['description' => 'API key tidak valid']
                         ]
                     ]
@@ -572,6 +649,9 @@ class WC_ERP_Sync
         return $key && $key === ($settings['api_key'] ?? '');
     }
 
+    // ================================================================================
+    // Product sync
+    // ================================================================================
     public function handle_product_sync($request)
     {
         $params = $request->get_json_params();
@@ -596,6 +676,80 @@ class WC_ERP_Sync
 
         return ['success' => true, 'product_id' => $product_id];
     }
+
+    /**
+     * 🧩 UPDATE Produk (ERP -> WooCommerce)
+     */
+    public function update_product_from_erp($request)
+    {
+        $params = $request->get_json_params();
+        $sku_erp = sanitize_text_field($params['sku_erp'] ?? '');
+        if (empty($sku_erp)) {
+            return new WP_Error('missing_sku', 'Missing sku_erp', ['status' => 400]);
+        }
+
+        $product_id = wc_get_product_id_by_sku($sku_erp);
+        if (!$product_id) {
+            return new WP_Error('not_found', 'Product not found', ['status' => 404]);
+        }
+
+        $update_data = [];
+
+        if (!empty($params['name'])) {
+            $update_data['post_title'] = sanitize_text_field($params['name']);
+        }
+
+        if (!empty($update_data)) {
+            $update_data['ID'] = $product_id;
+            wp_update_post($update_data);
+        }
+
+        if (isset($params['price'])) {
+            update_post_meta($product_id, '_price', floatval($params['price']));
+            update_post_meta($product_id, '_regular_price', floatval($params['price']));
+        }
+
+        if (isset($params['stock'])) {
+            update_post_meta($product_id, '_stock', intval($params['stock']));
+            wc_update_product_stock_status($product_id, intval($params['stock']) > 0 ? 'instock' : 'outofstock');
+        }
+
+        return rest_ensure_response([
+            'success' => true,
+            'message' => 'Product updated successfully',
+            'product_id' => $product_id,
+        ]);
+    }
+
+
+    /**
+     * 🗑️ DELETE Produk (ERP -> WooCommerce)
+     */
+    public function delete_product_from_erp($request)
+    {
+        $sku_erp = sanitize_text_field($request['sku_erp']);
+        if (empty($sku_erp)) {
+            return new WP_Error('missing_sku', 'Missing SKU ERP', ['status' => 400]);
+        }
+
+        $product_id = wc_get_product_id_by_sku($sku_erp);
+        if (!$product_id) {
+            return new WP_Error('not_found', 'Product not found', ['status' => 404]);
+        }
+
+        $deleted = wp_delete_post($product_id, true);
+
+        if (!$deleted) {
+            return new WP_Error('delete_failed', 'Failed to delete product', ['status' => 500]);
+        }
+
+        return rest_ensure_response([
+            'success' => true,
+            'message' => 'Product deleted successfully',
+            'deleted_id' => $product_id,
+        ]);
+    }
+
 
     public function send_order_to_erp($order_id)
     {
