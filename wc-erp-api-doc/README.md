@@ -1,2 +1,2 @@
 #### WC ERP API Docs
-<img width="1896" height="868" alt="Screenshot 2025-10-14 162957" src="https://github.com/user-attachments/assets/64891158-8353-43ac-8efd-b12aabc5cc33" />
+<img width="1920" height="1030" alt="WC-ERP-API-Docs" src="https://github.com/user-attachments/assets/734bfc49-196a-457d-88f7-9a28ed902bd5" />

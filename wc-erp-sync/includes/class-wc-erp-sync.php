@@ -305,6 +305,7 @@ class WC_ERP_Sync
             'callback' => [$this, 'handle_product_sync'],
             'permission_callback' => [$this, 'check_api_key_permission'],
         ]);
+
         // === Endpoint detail produk berdasarkan SKU_ERP ===
         register_rest_route('erp/v1', '/product/(?P<sku_erp>[a-zA-Z0-9_-]+)', [
             'methods' => 'GET',
@@ -397,7 +398,7 @@ class WC_ERP_Sync
                 '/products' => [
                     'get' => [
                         'summary' => 'Ambil Daftar Produk',
-                        'description' => 'Menarik data produk dari WooCommerce untuk sinkronisasi ERP.',
+                        'description' => 'Menarik data produk dari WooCommerce untuk sinkronisasi ERP, termasuk informasi accessories yang terkait.',
                         'parameters' => [[
                             'name' => 'X-ERP-KEY',
                             'in' => 'header',
@@ -406,7 +407,48 @@ class WC_ERP_Sync
                             'description' => 'API key ERP untuk autentikasi'
                         ]],
                         'responses' => [
-                            '200' => ['description' => 'Daftar produk berhasil diambil'],
+                            '200' => [
+                                'description' => 'Daftar produk berhasil diambil',
+                                'content' => [
+                                    'application/json' => [
+                                        'schema' => [
+                                            'type' => 'array',
+                                            'items' => [
+                                                'type' => 'object',
+                                                'properties' => [
+                                                    'id' => ['type' => 'integer', 'example' => 123],
+                                                    'sku' => ['type' => 'string', 'example' => 'FLUKE-117'],
+                                                    'name' => ['type' => 'string', 'example' => 'Fluke 117 Digital Multimeter'],
+                                                    'price' => ['type' => 'number', 'format' => 'float', 'example' => 2850000],
+                                                    'stock' => ['type' => 'integer', 'example' => 10],
+                                                    'categories' => [
+                                                        'type' => 'array',
+                                                        'items' => ['type' => 'string', 'example' => 'Multimeter']
+                                                    ],
+                                                    'images' => [
+                                                        'type' => 'array',
+                                                        'items' => ['type' => 'string', 'example' => 'https://dutapersada.co.id/wp-content/uploads/2025/01/fluke-117.jpg']
+                                                    ],
+                                                    'accessories' => [
+                                                        'type' => 'array',
+                                                        'description' => 'Daftar produk aksesoris yang terkait dengan produk ini',
+                                                        'items' => [
+                                                            'type' => 'object',
+                                                            'properties' => [
+                                                                'id' => ['type' => 'integer', 'example' => 456],
+                                                                'sku' => ['type' => 'string', 'example' => 'TL75'],
+                                                                'name' => ['type' => 'string', 'example' => 'Fluke TL75 Test Leads Set'],
+                                                                'price' => ['type' => 'number', 'format' => 'float', 'example' => 350000],
+                                                                'image' => ['type' => 'string', 'example' => 'https://dutapersada.co.id/wp-content/uploads/2025/01/tl75.jpg']
+                                                            ]
+                                                        ]
+                                                    ]
+                                                ]
+                                            ]
+                                        ]
+                                    ]
+                                ]
+                            ],
                             '401' => ['description' => 'API key tidak valid'],
                         ]
                     ]
@@ -414,15 +456,15 @@ class WC_ERP_Sync
 
                 '/product/{sku_erp}' => [
                     'get' => [
-                        'summary' => 'Ambil Detail Produk Berdasarkan SKU ERP',
-                        'description' => 'ERP dapat mengambil detail lengkap produk WooCommerce berdasarkan SKU ERP.',
+                        'summary' => 'Ambil Detail Produk berdasarkan SKU ERP',
+                        'description' => 'Menampilkan detail produk spesifik termasuk informasi accessories yang terkait.',
                         'parameters' => [
                             [
                                 'name' => 'sku_erp',
                                 'in' => 'path',
                                 'required' => true,
                                 'schema' => ['type' => 'string'],
-                                'description' => 'SKU produk yang digunakan oleh sistem ERP'
+                                'description' => 'SKU produk dari ERP'
                             ],
                             [
                                 'name' => 'X-ERP-KEY',
@@ -440,34 +482,45 @@ class WC_ERP_Sync
                                         'schema' => [
                                             'type' => 'object',
                                             'properties' => [
-                                                'id' => ['type' => 'integer'],
-                                                'sku' => ['type' => 'string'],
-                                                'sku_erp' => ['type' => 'string'],
-                                                'name' => ['type' => 'string'],
-                                                'price' => ['type' => 'string'],
-                                                'regular_price' => ['type' => 'string'],
-                                                'sale_price' => ['type' => 'string'],
-                                                'stock' => ['type' => 'integer'],
-                                                'status' => ['type' => 'string'],
+                                                'id' => ['type' => 'integer', 'example' => 123],
+                                                'sku' => ['type' => 'string', 'example' => 'FLUKE-117'],
+                                                'name' => ['type' => 'string', 'example' => 'Fluke 117 Digital Multimeter'],
+                                                'price' => ['type' => 'number', 'format' => 'float', 'example' => 2850000],
+                                                'stock' => ['type' => 'integer', 'example' => 10],
                                                 'categories' => [
                                                     'type' => 'array',
-                                                    'items' => ['type' => 'string']
+                                                    'items' => ['type' => 'string', 'example' => 'Multimeter']
                                                 ],
-                                                'description' => ['type' => 'string'],
-                                                'short_description' => ['type' => 'string'],
-                                                'image_url' => ['type' => 'string'],
-                                                'created_at' => ['type' => 'string', 'format' => 'date-time'],
-                                                'updated_at' => ['type' => 'string', 'format' => 'date-time']
+                                                'description' => ['type' => 'string', 'example' => 'Fluke 117 adalah multimeter digital dengan fitur AutoVolt dan LoZ yang ideal untuk teknisi listrik profesional.'],
+                                                'images' => [
+                                                    'type' => 'array',
+                                                    'items' => ['type' => 'string', 'example' => 'https://dutapersada.co.id/wp-content/uploads/2025/01/fluke-117.jpg']
+                                                ],
+                                                'accessories' => [
+                                                    'type' => 'array',
+                                                    'description' => 'Daftar produk aksesoris yang terkait dengan produk ini',
+                                                    'items' => [
+                                                        'type' => 'object',
+                                                        'properties' => [
+                                                            'id' => ['type' => 'integer', 'example' => 456],
+                                                            'sku' => ['type' => 'string', 'example' => 'TL75'],
+                                                            'name' => ['type' => 'string', 'example' => 'Fluke TL75 Test Leads Set'],
+                                                            'price' => ['type' => 'number', 'format' => 'float', 'example' => 350000],
+                                                            'image' => ['type' => 'string', 'example' => 'https://dutapersada.co.id/wp-content/uploads/2025/01/tl75.jpg']
+                                                        ]
+                                                    ]
+                                                ]
                                             ]
                                         ]
                                     ]
                                 ]
                             ],
                             '404' => ['description' => 'Produk tidak ditemukan'],
-                            '401' => ['description' => 'API key tidak valid']
+                            '401' => ['description' => 'API key tidak valid'],
                         ]
                     ]
                 ],
+
 
                 '/orders' => [
                     'get' => [
@@ -639,87 +692,180 @@ class WC_ERP_Sync
 
     public function get_products_list($request)
     {
+        // Ambil parameter dari URL (optional)
+        $category = sanitize_text_field($request->get_param('category'));
+        $sku_erp  = sanitize_text_field($request->get_param('sku_erp'));
+        $status   = sanitize_text_field($request->get_param('status')) ?: 'publish';
+        $per_page = intval($request->get_param('per_page')) ?: 50;
+        $page     = intval($request->get_param('page')) ?: 1;
+
         $args = [
             'post_type'      => 'product',
-            'posts_per_page' => 100,
-            'post_status'    => 'publish',
+            'posts_per_page' => $per_page,
+            'paged'          => $page,
+            'post_status'    => $status,
         ];
 
-        $products = get_posts($args);
-        $data = [];
-
-        foreach ($products as $product) {
-            $wc_product = wc_get_product($product->ID);
-            $data[] = [
-                'id'       => $product->ID,
-                'sku'      => $wc_product->get_sku(),
-                'sku_erp'  => get_post_meta($product->ID, '_sku_erp', true),
-                'name'     => $product->post_title,
-                'price'    => $wc_product->get_price(),
-                'stock'    => $wc_product->get_stock_quantity(),
+        // Filter by category
+        if (!empty($category)) {
+            $args['tax_query'] = [
+                [
+                    'taxonomy' => 'product_cat',
+                    'field'    => 'slug',
+                    'terms'    => $category,
+                ],
             ];
         }
 
-        return rest_ensure_response($data);
+        // Filter by SKU ERP
+        if (!empty($sku_erp)) {
+            $args['meta_query'] = [
+                [
+                    'key'   => '_sku_erp',
+                    'value' => $sku_erp,
+                    'compare' => '=',
+                ],
+            ];
+        }
+
+        $query = new WP_Query($args);
+        $data = [];
+
+        foreach ($query->posts as $product_post) {
+            $product = wc_get_product($product_post->ID);
+
+            // 🔹 Ambil data accessories dari meta (pastikan key sesuai dengan meta yang disimpan)
+            $accessories_raw = get_post_meta($product_post->ID, '_accessory_ids', true);
+            $accessories = !empty($accessories_raw) ? maybe_unserialize($accessories_raw) : [];
+
+            // 🔹 Ambil nama produk accessories (biar hasil lebih informatif)
+            $accessory_names = [];
+            if (!empty($accessories)) {
+                foreach ($accessories as $acc_id) {
+                    $acc_product = wc_get_product($acc_id);
+                    if ($acc_product) {
+                        $accessory_names[] = [
+                            'id'   => $acc_id,
+                            'name' => $acc_product->get_name(),
+                            'sku'  => $acc_product->get_sku(),
+                        ];
+                    }
+                }
+            }
+
+            $data[] = [
+                'id'            => $product_post->ID,
+                'sku'           => $product->get_sku(),
+                'sku_erp'       => get_post_meta($product_post->ID, '_sku_erp', true),
+                'name'          => $product->get_name(),
+                'price'         => $product->get_price(),
+                'regular_price' => $product->get_regular_price(),
+                'sale_price'    => $product->get_sale_price(),
+                'stock'         => $product->get_stock_quantity(),
+                'status'        => $product->get_status(),
+                'image_url'     => wp_get_attachment_url($product->get_image_id()),
+                'categories'    => wp_get_post_terms($product_post->ID, 'product_cat', ['fields' => 'names']),
+                'accessories'   => $accessory_names, // ✅ sudah terisi dengan data accessories
+                'updated_at'    => get_the_modified_date('Y-m-d H:i:s', $product_post->ID),
+            ];
+        }
+
+
+        return rest_ensure_response([
+            'success' => true,
+            'page'    => $page,
+            'per_page' => $per_page,
+            'total'   => $query->found_posts,
+            'total_pages' => $query->max_num_pages,
+            'data'    => $data,
+        ]);
     }
+
 
     public function get_product_by_sku_erp($request)
     {
         $sku_erp = sanitize_text_field($request['sku_erp']);
 
-        // 🔍 Coba cari produk berdasarkan meta _sku_erp
-        $product_query = new WP_Query([
+        // Cari produk berdasarkan meta _sku_erp
+        $args = [
             'post_type'  => 'product',
             'meta_query' => [
                 [
-                    'key'   => '_sku_erp',
-                    'value' => $sku_erp,
-                    'compare' => '='
-                ]
+                    'key'     => '_sku_erp',
+                    'value'   => $sku_erp,
+                    'compare' => '=',
+                ],
             ],
             'posts_per_page' => 1,
-            'fields' => 'ids'
-        ]);
-
-        if (empty($product_query->posts)) {
-            return new WP_Error('not_found', 'Product not found', ['status' => 404]);
-        }
-
-        $product_id = $product_query->posts[0];
-        $wc_product = wc_get_product($product_id);
-
-        if (!$wc_product) {
-            return new WP_Error('not_found', 'Invalid product ID', ['status' => 404]);
-        }
-
-        // Ambil kategori
-        $categories = wp_get_post_terms($product_id, 'product_cat', ['fields' => 'names']);
-        // Ambil gambar utama
-        $image_id = $wc_product->get_image_id();
-        $image_url = $image_id ? wp_get_attachment_url($image_id) : null;
-
-        $data = [
-            'id'        => $product_id,
-            'sku'       => $wc_product->get_sku(),
-            'sku_erp'   => get_post_meta($product_id, '_sku_erp', true),
-            'name'      => $wc_product->get_name(),
-            'price'     => $wc_product->get_price(),
-            'regular_price' => $wc_product->get_regular_price(),
-            'sale_price' => $wc_product->get_sale_price(),
-            'stock'     => $wc_product->get_stock_quantity(),
-            'status'    => $wc_product->get_status(),
-            'categories' => $categories,
-            'description' => wp_strip_all_tags($wc_product->get_description()),
-            'short_description' => wp_strip_all_tags($wc_product->get_short_description()),
-            'image_url' => $image_url,
-            'created_at' => get_the_date('Y-m-d H:i:s', $product_id),
-            'updated_at' => get_the_modified_date('Y-m-d H:i:s', $product_id),
         ];
 
-        return rest_ensure_response($data);
+        $query = new WP_Query($args);
+
+        if (empty($query->posts)) {
+            return new WP_Error(
+                'not_found',
+                'Produk dengan SKU ERP tersebut tidak ditemukan.',
+                ['status' => 404]
+            );
+        }
+
+        $product_post = $query->posts[0];
+        $product = wc_get_product($product_post->ID);
+
+        // 🔹 Ambil data accessories (support 2 meta key)
+        $accessories_raw = get_post_meta($product_post->ID, '_accessory_ids', true);
+        if (empty($accessories_raw)) {
+            $accessories_raw = get_post_meta($product_post->ID, '_accessories', true);
+        }
+        $accessory_ids = !empty($accessories_raw) ? maybe_unserialize($accessories_raw) : [];
+
+        // 🔹 Ambil detail tiap produk accessory
+        $accessories = [];
+        if (!empty($accessory_ids) && is_array($accessory_ids)) {
+            foreach ($accessory_ids as $acc_id) {
+                $acc_product = wc_get_product($acc_id);
+                if ($acc_product) {
+                    $accessories[] = [
+                        'id'          => $acc_product->get_id(),
+                        'sku'         => $acc_product->get_sku(),
+                        'name'        => $acc_product->get_name(),
+                        'price'       => $acc_product->get_price(),
+                        'regular_price' => $acc_product->get_regular_price(),
+                        'sale_price'  => $acc_product->get_sale_price(),
+                        'image_url'   => wp_get_attachment_url($acc_product->get_image_id()),
+                        'status'      => $acc_product->get_status(),
+                    ];
+                }
+            }
+        }
+
+        // 🔹 Susun data produk utama
+        $data = [
+            'id'            => $product_post->ID,
+            'sku'           => $product->get_sku(),
+            'sku_erp'       => $sku_erp,
+            'name'          => $product->get_name(),
+            'price'         => $product->get_price(),
+            'regular_price' => $product->get_regular_price(),
+            'sale_price'    => $product->get_sale_price(),
+            'stock'         => $product->get_stock_quantity(),
+            'status'        => $product->get_status(),
+            'image_url'     => wp_get_attachment_url($product->get_image_id()),
+            'gallery'       => array_map('wp_get_attachment_url', $product->get_gallery_image_ids()),
+            'categories'    => wp_get_post_terms($product_post->ID, 'product_cat', ['fields' => 'names']),
+            'tags'          => wp_get_post_terms($product_post->ID, 'product_tag', ['fields' => 'names']),
+            'description'   => $product->get_description(),
+            'short_description' => $product->get_short_description(),
+            'accessories'   => $accessories,
+            'created_at'    => get_the_date('Y-m-d H:i:s', $product_post->ID),
+            'updated_at'    => get_the_modified_date('Y-m-d H:i:s', $product_post->ID),
+        ];
+
+        return rest_ensure_response([
+            'success' => true,
+            'data'    => $data,
+        ]);
     }
-
-
 
     public function get_orders_list($request)
     {
