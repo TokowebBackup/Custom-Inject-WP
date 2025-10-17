@@ -153,6 +153,44 @@ add_action('woocommerce_cart_calculate_fees', function ($cart) {
             // break;
         }
     }
+
+    // =============================
+    // 🔥 FITUR TAMBAHAN: DISKON MITRA BERDASARKAN TOTAL QTY ORDER
+    // =============================
+
+    // Hitung total quantity semua produk dalam cart
+    $total_qty = 0;
+    foreach ($cart->get_cart() as $item) {
+        $total_qty += $item['quantity'];
+    }
+
+    // Definisi level diskon (bisa disesuaikan)
+    $tiers = [
+        1   => 20,  // minimal 1 item → 20%
+        5   => 25,  // minimal 5 item → 25%
+        10  => 30,  // minimal 10 item → 30%
+    ];
+
+    // Tentukan diskon yang berlaku
+    $voucher_percent_tier = $voucher_percent; // default dari kupon
+    foreach (array_reverse($tiers, true) as $min_qty => $percent) {
+        if ($total_qty >= $min_qty) {
+            $voucher_percent_tier = $percent;
+            break;
+        }
+    }
+
+    // Jika berbeda dari kupon asli, simpan ke session tambahan
+    if ($voucher_percent_tier !== $voucher_percent) {
+        WC()->session->set('ovm_voucher_percent_tiered', $voucher_percent_tier);
+    }
+
+    // Ganti nilai voucher_percent akhir dengan versi tier
+    $voucher_percent = $voucher_percent_tier;
+
+    // Hitung ulang diskon
+    $diskon_kupon = ($voucher_percent > 0) ? ($raw_subtotal * ($voucher_percent / 100)) : 0;
+
     $diskon_kupon = ($voucher_percent > 0) ? ($raw_subtotal * ($voucher_percent / 100)) : 0;
 
     /**
@@ -248,10 +286,23 @@ function ovm_print_breakdown()
     echo '<tr class="custom-dp"><th>DP 50%</th><td>' . wc_price($dp_amount) . '</td></tr>';
     echo '<tr class="custom-pelunasan"><th>Pelunasan 50%</th><td>' . wc_price($pelunasan_amount) . '</td></tr>';
 
+    // Ambil total qty dari cart untuk pesan bonus diskon
+    $total_qty = 0;
+    foreach (WC()->cart->get_cart() as $item) {
+        $total_qty += $item['quantity'];
+    }
+
+    $voucher_percent_tier = WC()->session->get('ovm_voucher_percent_tiered');
+    if ($voucher_percent_tier && $voucher_percent_tier > $voucher_percent) {
+        echo '<tr><td colspan="2" style="text-align:center;color:#3A0BF4;">
+        <small><em>🎉 Anda mendapat bonus diskon Mitra ' . esc_html($voucher_percent_tier) . '% karena jumlah order Anda mencapai ' . esc_html($total_qty) . ' item!</em></small>
+    </td></tr>';
+    }
+
+
     WC()->session->set('final_checkout_dp_amount', $dp_amount);
     echo '<tr class="custom-total-bayar"><th style="text-transform:uppercase;font-weight:800;">Total Bayar (Checkout DP)</th><td style="font-size:1.5em;font-weight:900;color:#3A0BF4;">' . wc_price($dp_amount) . '</td></tr>';
 }
-
 
 /**
  * 4b️⃣ Styling tambahan agar tampilan breakdown rapi di tabel WooCommerce
