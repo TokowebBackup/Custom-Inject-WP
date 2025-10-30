@@ -1,4 +1,3 @@
-<?php
 
 /**
  * Plugin Name: Override Voucher Mitra (v3.3.3 AutoFix)
@@ -499,3 +498,65 @@ add_filter('woocommerce_get_price_html', function ($price_html, $product) {
 
     return $harga_html;
 }, 20, 2);
+
+/**
+ * 🧠 Auto-fill kupon aktif di halaman Cart & Checkout Elementor
+ */
+add_action('wp_print_footer_scripts', function () {
+    if (!is_cart() && !is_checkout()) return;
+
+    $args = [
+        'post_type'      => 'shop_coupon',
+        'post_status'    => 'publish',
+        'posts_per_page' => 1,
+        'orderby'        => 'date',
+        'order'          => 'DESC',
+    ];
+
+    $coupon_query = new WP_Query($args);
+
+    if ($coupon_query->have_posts()) {
+        $coupon_post = $coupon_query->posts[0];
+        $coupon_code = esc_js($coupon_post->post_name);
+        ?>
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+          var activeCoupon = '<?php echo $coupon_code; ?>';
+          console.log("🧾 Kupon aktif dari server:", activeCoupon);
+
+          // 👇 Auto-open form kupon (klik link "Kode kupon" kalau belum terbuka)
+          const openCoupon = () => {
+            const trigger = document.querySelector('.js-cart-coupon');
+            const formWrap = document.querySelector('.c-cart__coupon-from-wrap');
+            if (trigger && formWrap && !formWrap.classList.contains('c-cart__coupon-from-wrap--opened')) {
+              trigger.click();
+              console.log("💡 Kupon form dibuka otomatis");
+            }
+          };
+          openCoupon(); // jalankan langsung
+          setTimeout(openCoupon, 500); // ulang sebentar kemudian (kalau render delay)
+
+          // Observer untuk isi otomatis
+          const observer = new MutationObserver(() => {
+            const couponInput = document.querySelector('input[name="coupon_code"]');
+            if (couponInput && !couponInput.value) {
+              couponInput.value = activeCoupon;
+              console.log("✅ Kode kupon otomatis diisi:", activeCoupon);
+
+              const applyButton = document.querySelector('button[name="apply_coupon"]');
+              if (applyButton) {
+                applyButton.click();
+                console.log("🎯 Tombol Apply diklik otomatis");
+              }
+              observer.disconnect();
+            }
+          });
+
+          observer.observe(document.body, { childList: true, subtree: true });
+        });
+        </script>
+        <?php
+    } else {
+        echo "<script>console.log('⚠️ Tidak ditemukan kupon publish.');</script>";
+    }
+});
