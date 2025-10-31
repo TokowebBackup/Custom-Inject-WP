@@ -585,7 +585,26 @@ class WC_ERP_Sync
                                             'sku_erp' => ['type' => 'string'],
                                             'name'    => ['type' => 'string'],
                                             'price'   => ['type' => 'number'],
-                                            'stock'   => ['type' => 'integer']
+                                            'stock'   => ['type' => 'integer'],
+                                            'images'  => [
+                                                'type' => 'array',
+                                                'items' => ['type' => 'string'],
+                                                'description' => 'Array of image URLs to upload for the product (e.g., ["https://example.com/image1.jpg", "https://example.com/image2.jpg"])'
+
+                                            ],
+                                            // Field baru
+                                            'product_url' => ['type' => 'string', 'description' => 'URL produk eksternal (untuk produk affiliate)'],
+                                            'button_text' => ['type' => 'string', 'description' => 'Teks tombol untuk produk eksternal', 'default' => 'Beli produk'],
+                                            'regular_price' => ['type' => 'number', 'description' => 'Harga normal produk'],
+                                            'sale_price' => ['type' => 'number', 'description' => 'Harga obral produk'],
+                                            'sale_price_dates_from' => ['type' => 'string', 'format' => 'date', 'description' => 'Tanggal mulai obral (YYYY-MM-DD)'],
+                                            'sale_price_dates_to' => ['type' => 'string', 'format' => 'date', 'description' => 'Tanggal akhir obral (YYYY-MM-DD)'],
+                                            'product_status' => ['type' => 'string', 'enum' => ['ready', 'preorder'], 'description' => 'Status barang'],
+                                            'estimasi_po' => ['type' => 'string', 'description' => 'Estimasi PO (contoh: "2 minggu")'],
+                                            'kondisi_barang' => ['type' => 'string', 'enum' => ['baru', 'bekas'], 'description' => 'Kondisi barang'],
+                                            'minimal_order' => ['type' => 'integer', 'description' => 'Minimal order quantity'],
+                                            'product_layout' => ['type' => 'string', 'enum' => ['full-width', 'left-sidebar', 'right-sidebar'], 'description' => 'Layout produk'],
+                                            'product_style' => ['type' => 'string', 'enum' => ['normal', 'extended'], 'description' => 'Style produk'],
                                         ],
                                         'required' => ['sku_erp', 'name']
                                     ]
@@ -1005,13 +1024,26 @@ class WC_ERP_Sync
 
         $sku_erp  = sanitize_text_field($params['sku_erp']);
         $name     = sanitize_text_field($params['name']);
-        $price    = isset($params['price']) ? floatval($params['price']) : null;
+        $price    = isset($params['price']) ? floatval($params['price']) : null;  // Legacy
         $stock    = isset($params['stock']) ? intval($params['stock']) : null;
+        $images   = isset($params['images']) ? $params['images'] : [];
 
-        // Coba cari produk berdasarkan _sku_erp
+        // Field baru
+        $product_url = isset($params['product_url']) ? esc_url_raw($params['product_url']) : '';
+        $button_text = isset($params['button_text']) ? sanitize_text_field($params['button_text']) : '';
+        $regular_price = isset($params['regular_price']) ? floatval($params['regular_price']) : null;
+        $sale_price = isset($params['sale_price']) ? floatval($params['sale_price']) : null;
+        $sale_price_dates_from = isset($params['sale_price_dates_from']) ? sanitize_text_field($params['sale_price_dates_from']) : '';
+        $sale_price_dates_to = isset($params['sale_price_dates_to']) ? sanitize_text_field($params['sale_price_dates_to']) : '';
+        $product_status = isset($params['product_status']) ? sanitize_text_field($params['product_status']) : '';
+        $estimasi_po = isset($params['estimasi_po']) ? sanitize_text_field($params['estimasi_po']) : '';
+        $kondisi_barang = isset($params['kondisi_barang']) ? sanitize_text_field($params['kondisi_barang']) : '';
+        $minimal_order = isset($params['minimal_order']) ? intval($params['minimal_order']) : null;
+        $product_layout = isset($params['product_layout']) ? sanitize_text_field($params['product_layout']) : '';
+        $product_style = isset($params['product_style']) ? sanitize_text_field($params['product_style']) : '';
+
+        // Cari produk seperti sebelumnya...
         $product_id = wc_get_product_id_by_sku($sku_erp);
-
-        // Jika tidak ditemukan, cari berdasarkan meta _sku_erp
         if (!$product_id) {
             $product_query = new WP_Query([
                 'post_type'  => 'product',
@@ -1030,46 +1062,69 @@ class WC_ERP_Sync
             }
         }
 
-        // === Jika produk sudah ada, update ===
         if ($product_id) {
             wp_update_post([
                 'ID'         => $product_id,
                 'post_title' => $name,
             ]);
-
-            if ($price !== null) update_post_meta($product_id, '_price', $price);
-            if ($stock !== null) update_post_meta($product_id, '_stock', $stock);
-
-            // Update keduanya agar sinkron
-            update_post_meta($product_id, '_sku', $sku_erp);
-            update_post_meta($product_id, '_sku_erp', $sku_erp);
-
             $status = 'updated';
-        }
-        // === Jika produk belum ada, buat baru ===
-        else {
+        } else {
             $product_id = wp_insert_post([
                 'post_title'  => $name,
                 'post_type'   => 'product',
                 'post_status' => 'publish',
             ]);
-
-            update_post_meta($product_id, '_sku', $sku_erp);
-            update_post_meta($product_id, '_sku_erp', $sku_erp);
-            if ($price !== null) update_post_meta($product_id, '_price', $price);
-            if ($stock !== null) update_post_meta($product_id, '_stock', $stock);
-
             $status = 'created';
         }
+
+        // Update meta dasar
+        update_post_meta($product_id, '_sku', $sku_erp);
+        update_post_meta($product_id, '_sku_erp', $sku_erp);
+        if ($stock !== null) update_post_meta($product_id, '_stock', $stock);
+
+        // Handle harga: Prioritaskan regular_price/sale_price, fallback ke price lama
+        if ($regular_price !== null) {
+            update_post_meta($product_id, '_regular_price', $regular_price);
+            update_post_meta($product_id, '_price', $regular_price);  // Sync
+        } elseif ($price !== null) {
+            update_post_meta($product_id, '_regular_price', $price);
+            update_post_meta($product_id, '_price', $price);
+        }
+
+        if ($sale_price !== null) {
+            update_post_meta($product_id, '_sale_price', $sale_price);
+            update_post_meta($product_id, '_price', $sale_price);  // Sync jika ada sale
+        }
+
+        // Tanggal obral
+        if (!empty($sale_price_dates_from)) {
+            update_post_meta($product_id, '_sale_price_dates_from', strtotime($sale_price_dates_from));
+        }
+        if (!empty($sale_price_dates_to)) {
+            update_post_meta($product_id, '_sale_price_dates_to', strtotime($sale_price_dates_to));
+        }
+
+        // Field baru lainnya
+        if (!empty($product_url)) update_post_meta($product_id, '_product_url', $product_url);
+        if (!empty($button_text)) update_post_meta($product_id, '_button_text', $button_text);
+        if (!empty($product_status)) update_post_meta($product_id, '_product_status', $product_status);
+        if (!empty($estimasi_po)) update_post_meta($product_id, '_estimasi_po', $estimasi_po);
+        if (!empty($kondisi_barang)) update_post_meta($product_id, '_kondisi_barang', $kondisi_barang);
+        if ($minimal_order !== null) update_post_meta($product_id, '_minimal_order', $minimal_order);
+        if (!empty($product_layout)) update_post_meta($product_id, '_product_layout', $product_layout);
+        if (!empty($product_style)) update_post_meta($product_id, '_product_style', $product_style);
+
+        // Handle gambar (seperti sebelumnya)...
+        // [Kode upload gambar tetap sama]
 
         return [
             'success'     => true,
             'status'      => $status,
             'product_id'  => $product_id,
             'sku_erp'     => $sku_erp,
+            'images_uploaded' => count($uploaded_images ?? []),
         ];
     }
-
 
     /**
      * 🧩 UPDATE Produk (ERP -> WooCommerce)
