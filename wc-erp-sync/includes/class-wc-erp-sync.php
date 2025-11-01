@@ -328,6 +328,50 @@ class WC_ERP_Sync
             'permission_callback' => [$this, 'check_api_key_permission'],
         ]);
 
+        // === Endpoint Categories (product_cat) ===
+        register_rest_route('erp/v1', '/categories', [
+            'methods' => 'GET',
+            'callback' => [$this, 'get_categories'],
+            'permission_callback' => [$this, 'check_api_key_permission'],
+        ]);
+        register_rest_route('erp/v1', '/categories', [
+            'methods' => 'POST',
+            'callback' => [$this, 'create_category'],
+            'permission_callback' => [$this, 'check_api_key_permission'],
+        ]);
+        register_rest_route('erp/v1', '/categories/(?P<id>\d+)', [
+            'methods' => 'PUT',
+            'callback' => [$this, 'update_category'],
+            'permission_callback' => [$this, 'check_api_key_permission'],
+        ]);
+        register_rest_route('erp/v1', '/categories/(?P<id>\d+)', [
+            'methods' => 'DELETE',
+            'callback' => [$this, 'delete_category'],
+            'permission_callback' => [$this, 'check_api_key_permission'],
+        ]);
+
+        // === Endpoint Brands (product_brand) ===
+        register_rest_route('erp/v1', '/brands', [
+            'methods' => 'GET',
+            'callback' => [$this, 'get_brands'],
+            'permission_callback' => [$this, 'check_api_key_permission'],
+        ]);
+        register_rest_route('erp/v1', '/brands', [
+            'methods' => 'POST',
+            'callback' => [$this, 'create_brand'],
+            'permission_callback' => [$this, 'check_api_key_permission'],
+        ]);
+        register_rest_route('erp/v1', '/brands/(?P<id>\d+)', [
+            'methods' => 'PUT',
+            'callback' => [$this, 'update_brand'],
+            'permission_callback' => [$this, 'check_api_key_permission'],
+        ]);
+        register_rest_route('erp/v1', '/brands/(?P<id>\d+)', [
+            'methods' => 'DELETE',
+            'callback' => [$this, 'delete_brand'],
+            'permission_callback' => [$this, 'check_api_key_permission'],
+        ]);
+
         // === Informasi Toko WooCommerce ===
         register_rest_route('erp/v1', '/store-info', [
             'methods' => 'GET',
@@ -521,6 +565,229 @@ class WC_ERP_Sync
                     ]
                 ],
 
+                '/categories' => [
+                    'get' => [
+                        'summary' => 'Ambil Daftar Kategori Produk',
+                        'description' => 'Mengambil daftar semua kategori produk WooCommerce.',
+                        'parameters' => [[
+                            'name' => 'X-ERP-KEY',
+                            'in' => 'header',
+                            'required' => true,
+                            'schema' => ['type' => 'string']
+                        ]],
+                        'responses' => [
+                            '200' => ['description' => 'Daftar kategori berhasil diambil'],
+                            '401' => ['description' => 'API key tidak valid']
+                        ]
+                    ],
+                    'post' => [
+                        'summary' => 'Buat Kategori Produk Baru',
+                        'description' => 'ERP membuat kategori produk baru di WooCommerce.',
+                        'parameters' => [[
+                            'name' => 'X-ERP-KEY',
+                            'in' => 'header',
+                            'required' => true,
+                            'schema' => ['type' => 'string']
+                        ]],
+                        'requestBody' => [
+                            'required' => true,
+                            'content' => [
+                                'application/json' => [
+                                    'schema' => [
+                                        'type' => 'object',
+                                        'properties' => [
+                                            'name' => ['type' => 'string'],
+                                            'slug' => ['type' => 'string'],
+                                            'description' => ['type' => 'string'],
+                                            'parent' => ['type' => 'integer', 'description' => 'ID parent category']
+                                        ],
+                                        'required' => ['name']
+                                    ]
+                                ]
+                            ]
+                        ],
+                        'responses' => [
+                            '201' => ['description' => 'Kategori berhasil dibuat'],
+                            '400' => ['description' => 'Data tidak lengkap'],
+                            '401' => ['description' => 'API key tidak valid']
+                        ]
+                    ]
+                ],
+                '/categories/{id}' => [
+                    'put' => [
+                        'summary' => 'Update Kategori Produk',
+                        'description' => 'ERP memperbarui kategori produk berdasarkan ID.',
+                        'parameters' => [
+                            [
+                                'name' => 'id',
+                                'in' => 'path',
+                                'required' => true,
+                                'schema' => ['type' => 'integer']
+                            ],
+                            [
+                                'name' => 'X-ERP-KEY',
+                                'in' => 'header',
+                                'required' => true,
+                                'schema' => ['type' => 'string']
+                            ]
+                        ],
+                        'requestBody' => [
+                            'required' => true,
+                            'content' => [
+                                'application/json' => [
+                                    'schema' => [
+                                        'type' => 'object',
+                                        'properties' => [
+                                            'name' => ['type' => 'string'],
+                                            'slug' => ['type' => 'string'],
+                                            'description' => ['type' => 'string'],
+                                            'parent' => ['type' => 'integer']
+                                        ]
+                                    ]
+                                ]
+                            ]
+                        ],
+                        'responses' => [
+                            '200' => ['description' => 'Kategori berhasil diperbarui'],
+                            '404' => ['description' => 'Kategori tidak ditemukan'],
+                            '401' => ['description' => 'API key tidak valid']
+                        ]
+                    ],
+                    'delete' => [
+                        'summary' => 'Hapus Kategori Produk',
+                        'description' => 'ERP menghapus kategori produk berdasarkan ID.',
+                        'parameters' => [
+                            [
+                                'name' => 'id',
+                                'in' => 'path',
+                                'required' => true,
+                                'schema' => ['type' => 'integer']
+                            ],
+                            [
+                                'name' => 'X-ERP-KEY',
+                                'in' => 'header',
+                                'required' => true,
+                                'schema' => ['type' => 'string']
+                            ]
+                        ],
+                        'responses' => [
+                            '200' => ['description' => 'Kategori berhasil dihapus'],
+                            '404' => ['description' => 'Kategori tidak ditemukan'],
+                            '401' => ['description' => 'API key tidak valid']
+                        ]
+                    ]
+                ],
+
+                '/brands' => [
+                    'get' => [
+                        'summary' => 'Ambil Daftar Brand Produk',
+                        'description' => 'Mengambil daftar semua brand produk WooCommerce.',
+                        'parameters' => [[
+                            'name' => 'X-ERP-KEY',
+                            'in' => 'header',
+                            'required' => true,
+                            'schema' => ['type' => 'string']
+                        ]],
+                        'responses' => [
+                            '200' => ['description' => 'Daftar brand berhasil diambil'],
+                            '401' => ['description' => 'API key tidak valid']
+                        ]
+                    ],
+                    'post' => [
+                        'summary' => 'Buat Brand Produk Baru',
+                        'description' => 'ERP membuat brand produk baru di WooCommerce.',
+                        'parameters' => [[
+                            'name' => 'X-ERP-KEY',
+                            'in' => 'header',
+                            'required' => true,
+                            'schema' => ['type' => 'string']
+                        ]],
+                        'requestBody' => [
+                            'required' => true,
+                            'content' => [
+                                'application/json' => [
+                                    'schema' => [
+                                        'type' => 'object',
+                                        'properties' => [
+                                            'name' => ['type' => 'string'],
+                                            'slug' => ['type' => 'string'],
+                                            'description' => ['type' => 'string']
+                                        ],
+                                        'required' => ['name']
+                                    ]
+                                ]
+                            ]
+                        ],
+                        'responses' => [
+                            '201' => ['description' => 'Brand berhasil dibuat'],
+                            '400' => ['description' => 'Data tidak lengkap'],
+                            '401' => ['description' => 'API key tidak valid']
+                        ]
+                    ]
+                ],
+                '/brands/{id}' => [
+                    'put' => [
+                        'summary' => 'Update Brand Produk',
+                        'description' => 'ERP memperbarui brand produk berdasarkan ID.',
+                        'parameters' => [
+                            [
+                                'name' => 'id',
+                                'in' => 'path',
+                                'required' => true,
+                                'schema' => ['type' => 'integer']
+                            ],
+                            [
+                                'name' => 'X-ERP-KEY',
+                                'in' => 'header',
+                                'required' => true,
+                                'schema' => ['type' => 'string']
+                            ]
+                        ],
+                        'requestBody' => [
+                            'required' => true,
+                            'content' => [
+                                'application/json' => [
+                                    'schema' => [
+                                        'type' => 'object',
+                                        'properties' => [
+                                            'name' => ['type' => 'string'],
+                                            'slug' => ['type' => 'string'],
+                                            'description' => ['type' => 'string']
+                                        ]
+                                    ]
+                                ]
+                            ]
+                        ],
+                        'responses' => [
+                            '200' => ['description' => 'Brand berhasil diperbarui'],
+                            '404' => ['description' => 'Brand tidak ditemukan'],
+                            '401' => ['description' => 'API key tidak valid']
+                        ]
+                    ],
+                    'delete' => [
+                        'summary' => 'Hapus Brand Produk',
+                        'description' => 'ERP menghapus brand produk berdasarkan ID.',
+                        'parameters' => [
+                            [
+                                'name' => 'id',
+                                'in' => 'path',
+                                'required' => true,
+                                'schema' => ['type' => 'integer']
+                            ],
+                            [
+                                'name' => 'X-ERP-KEY',
+                                'in' => 'header',
+                                'required' => true,
+                                'schema' => ['type' => 'string']
+                            ]
+                        ],
+                        'responses' => [
+                            '200' => ['description' => 'Brand berhasil dihapus'],
+                            '404' => ['description' => 'Brand tidak ditemukan'],
+                            '401' => ['description' => 'API key tidak valid']
+                        ]
+                    ]
+                ],
 
                 '/orders' => [
                     'get' => [
@@ -886,6 +1153,236 @@ class WC_ERP_Sync
         ]);
     }
 
+    public function get_categories($request)
+    {
+        $terms = get_terms([
+            'taxonomy' => 'product_cat',
+            'hide_empty' => false,
+            'orderby' => 'name',
+            'order' => 'ASC'
+        ]);
+
+        if (is_wp_error($terms)) {
+            return new WP_Error('error', 'Failed to retrieve categories', ['status' => 500]);
+        }
+
+        $data = [];
+        foreach ($terms as $term) {
+            $data[] = [
+                'id' => $term->term_id,
+                'name' => $term->name,
+                'slug' => $term->slug,
+                'description' => $term->description,
+                'parent' => $term->parent,
+                'count' => $term->count,  // Jumlah produk
+            ];
+        }
+
+        return rest_ensure_response([
+            'success' => true,
+            'data' => $data,
+        ]);
+    }
+
+    public function create_category($request)
+    {
+        $params = $request->get_json_params();
+
+        if (empty($params['name'])) {
+            return new WP_Error('missing_name', 'Category name is required', ['status' => 400]);
+        }
+
+        $args = [
+            'name' => sanitize_text_field($params['name']),
+            'slug' => !empty($params['slug']) ? sanitize_title($params['slug']) : '',
+            'description' => !empty($params['description']) ? sanitize_textarea_field($params['description']) : '',
+            'parent' => !empty($params['parent']) ? intval($params['parent']) : 0,
+        ];
+
+        $term = wp_insert_term($args['name'], 'product_cat', $args);
+
+        if (is_wp_error($term)) {
+            return new WP_Error('create_failed', $term->get_error_message(), ['status' => 500]);
+        }
+
+        return rest_ensure_response([
+            'success' => true,
+            'message' => 'Category created successfully',
+            'category_id' => $term['term_id'],
+        ], 201);
+    }
+
+    public function update_category($request)
+    {
+        $id = intval($request['id']);
+        $params = $request->get_json_params();
+
+        if (!term_exists($id, 'product_cat')) {
+            return new WP_Error('not_found', 'Category not found', ['status' => 404]);
+        }
+
+        $args = [];
+        if (!empty($params['name'])) $args['name'] = sanitize_text_field($params['name']);
+        if (!empty($params['slug'])) $args['slug'] = sanitize_title($params['slug']);
+        if (isset($params['description'])) $args['description'] = sanitize_textarea_field($params['description']);
+        if (isset($params['parent'])) $args['parent'] = intval($params['parent']);
+
+        $updated = wp_update_term($id, 'product_cat', $args);
+
+        if (is_wp_error($updated)) {
+            return new WP_Error('update_failed', $updated->get_error_message(), ['status' => 500]);
+        }
+
+        return rest_ensure_response([
+            'success' => true,
+            'message' => 'Category updated successfully',
+            'category_id' => $id,
+        ]);
+    }
+
+    public function delete_category($request)
+    {
+        $id = intval($request['id']);
+
+        if (!term_exists($id, 'product_cat')) {
+            return new WP_Error('not_found', 'Category not found', ['status' => 404]);
+        }
+
+        $deleted = wp_delete_term($id, 'product_cat');
+
+        if (is_wp_error($deleted)) {
+            return new WP_Error('delete_failed', $deleted->get_error_message(), ['status' => 500]);
+        }
+
+        return rest_ensure_response([
+            'success' => true,
+            'message' => 'Category deleted successfully',
+            'deleted_id' => $id,
+        ]);
+    }
+
+    public function get_brands($request)
+    {
+        if (!taxonomy_exists('product_brand')) {
+            return new WP_Error('not_found', 'Brand taxonomy not found', ['status' => 404]);
+        }
+
+        $terms = get_terms([
+            'taxonomy' => 'product_brand',
+            'hide_empty' => false,
+            'orderby' => 'name',
+            'order' => 'ASC'
+        ]);
+
+        if (is_wp_error($terms)) {
+            return new WP_Error('error', 'Failed to retrieve brands', ['status' => 500]);
+        }
+
+        $data = [];
+        foreach ($terms as $term) {
+            $data[] = [
+                'id' => $term->term_id,
+                'name' => $term->name,
+                'slug' => $term->slug,
+                'description' => $term->description,
+                'count' => $term->count,
+            ];
+        }
+
+        return rest_ensure_response([
+            'success' => true,
+            'data' => $data,
+        ]);
+    }
+
+    public function create_brand($request)
+    {
+        if (!taxonomy_exists('product_brand')) {
+            return new WP_Error('not_found', 'Brand taxonomy not found', ['status' => 404]);
+        }
+
+        $params = $request->get_json_params();
+
+        if (empty($params['name'])) {
+            return new WP_Error('missing_name', 'Brand name is required', ['status' => 400]);
+        }
+
+        $args = [
+            'name' => sanitize_text_field($params['name']),
+            'slug' => !empty($params['slug']) ? sanitize_title($params['slug']) : '',
+            'description' => !empty($params['description']) ? sanitize_textarea_field($params['description']) : '',
+        ];
+
+        $term = wp_insert_term($args['name'], 'product_brand', $args);
+
+        if (is_wp_error($term)) {
+            return new WP_Error('create_failed', $term->get_error_message(), ['status' => 500]);
+        }
+
+        return rest_ensure_response([
+            'success' => true,
+            'message' => 'Brand created successfully',
+            'brand_id' => $term['term_id'],
+        ], 201);
+    }
+
+    public function update_brand($request)
+    {
+        if (!taxonomy_exists('product_brand')) {
+            return new WP_Error('not_found', 'Brand taxonomy not found', ['status' => 404]);
+        }
+
+        $id = intval($request['id']);
+        $params = $request->get_json_params();
+
+        if (!term_exists($id, 'product_brand')) {
+            return new WP_Error('not_found', 'Brand not found', ['status' => 404]);
+        }
+
+        $args = [];
+        if (!empty($params['name'])) $args['name'] = sanitize_text_field($params['name']);
+        if (!empty($params['slug'])) $args['slug'] = sanitize_title($params['slug']);
+        if (isset($params['description'])) $args['description'] = sanitize_textarea_field($params['description']);
+
+        $updated = wp_update_term($id, 'product_brand', $args);
+
+        if (is_wp_error($updated)) {
+            return new WP_Error('update_failed', $updated->get_error_message(), ['status' => 500]);
+        }
+
+        return rest_ensure_response([
+            'success' => true,
+            'message' => 'Brand updated successfully',
+            'brand_id' => $id,
+        ]);
+    }
+
+    public function delete_brand($request)
+    {
+        if (!taxonomy_exists('product_brand')) {
+            return new WP_Error('not_found', 'Brand taxonomy not found', ['status' => 404]);
+        }
+
+        $id = intval($request['id']);
+
+        if (!term_exists($id, 'product_brand')) {
+            return new WP_Error('not_found', 'Brand not found', ['status' => 404]);
+        }
+
+        $deleted = wp_delete_term($id, 'product_brand');
+
+        if (is_wp_error($deleted)) {
+            return new WP_Error('delete_failed', $deleted->get_error_message(), ['status' => 500]);
+        }
+
+        return rest_ensure_response([
+            'success' => true,
+            'message' => 'Brand deleted successfully',
+            'deleted_id' => $id,
+        ]);
+    }
+
+
     public function get_orders_list($request)
     {
         $args = [
@@ -967,41 +1464,41 @@ class WC_ERP_Sync
         return rest_ensure_response($data);
     }
 
-    public function get_categories($request)
-    {
-        $terms = get_terms(['taxonomy' => 'product_cat', 'hide_empty' => false]);
-        $data = [];
+    // public function get_categories($request)
+    // {
+    //     $terms = get_terms(['taxonomy' => 'product_cat', 'hide_empty' => false]);
+    //     $data = [];
 
-        foreach ($terms as $term) {
-            $data[] = [
-                'id' => $term->term_id,
-                'name' => $term->name,
-                'slug' => $term->slug,
-            ];
-        }
+    //     foreach ($terms as $term) {
+    //         $data[] = [
+    //             'id' => $term->term_id,
+    //             'name' => $term->name,
+    //             'slug' => $term->slug,
+    //         ];
+    //     }
 
-        return rest_ensure_response($data);
-    }
+    //     return rest_ensure_response($data);
+    // }
 
-    public function get_brands($request)
-    {
-        if (!taxonomy_exists('product_brand')) {
-            return new WP_Error('not_found', 'Brand taxonomy not found', ['status' => 404]);
-        }
+    // public function get_brands($request)
+    // {
+    //     if (!taxonomy_exists('product_brand')) {
+    //         return new WP_Error('not_found', 'Brand taxonomy not found', ['status' => 404]);
+    //     }
 
-        $terms = get_terms(['taxonomy' => 'product_brand', 'hide_empty' => false]);
-        $data = [];
+    //     $terms = get_terms(['taxonomy' => 'product_brand', 'hide_empty' => false]);
+    //     $data = [];
 
-        foreach ($terms as $term) {
-            $data[] = [
-                'id' => $term->term_id,
-                'name' => $term->name,
-                'slug' => $term->slug,
-            ];
-        }
+    //     foreach ($terms as $term) {
+    //         $data[] = [
+    //             'id' => $term->term_id,
+    //             'name' => $term->name,
+    //             'slug' => $term->slug,
+    //         ];
+    //     }
 
-        return rest_ensure_response($data);
-    }
+    //     return rest_ensure_response($data);
+    // }
 
 
     public function check_api_key_permission($request)
