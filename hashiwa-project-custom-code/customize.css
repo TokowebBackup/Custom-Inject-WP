@@ -1,0 +1,13 @@
+:root {
+    --gold-light: #f7e183;
+    --gold-mid: #e8c547;
+    --gold: #d4af37;
+    --gold-dark: #b8860b;
+
+    /* ✨ Gradient emas realistik */
+    --gold-gradient: linear-gradient(135deg,
+            var(--gold-light) 0%,
+            var(--gold-mid) 25%,
+            var(--gold) 60%,
+            var(--gold-dark) 100%);
+}
