@@ -4,10 +4,93 @@
     --gold: #d4af37;
     --gold-dark: #b8860b;
 
-    /* ✨ Gradient emas realistik */
+    /* tombol gradasi solid */
+    --btn-gold-gradient: linear-gradient(90deg, #FFD700 0%, #FFB700 50%, #FFD700 100%);
+    --btn-gold-hover: linear-gradient(90deg, #FFB700 0%, #FFD700 50%, #FFB700 100%);
+    --btn-text-color: #ffffff;
+    --btn-text-outline: #d4af37;
+
+    /* gradasi emas realistik untuk border */
     --gold-gradient: linear-gradient(135deg,
             var(--gold-light) 0%,
             var(--gold-mid) 25%,
             var(--gold) 60%,
             var(--gold-dark) 100%);
+
+    /* tambahkan var khusus untuk outline border */
+    --btn-gold-outline-border: var(--gold-gradient);
+    --btn-gold-outline-hover-bg: var(--gold-gradient);
+    --btn-gold-outline-text: var(--gold);
+}
+
+/* ===============================
+   BUTTON GOLD OUTLINE STYLE (FINAL FIX v2)
+   =============================== */
+.btn-gold-outline,
+.elementor-button.btn-gold-outline,
+.elementor-button.btn-gold-outline span {
+    position: relative;
+    display: inline-block;
+    padding: 12px 32px;
+    font-weight: 600;
+    text-transform: capitalize;
+    color: var(--btn-gold-outline-text) !important;
+    border-radius: 50px;
+    border: 2px solid transparent;
+    background:
+        linear-gradient(135deg, #fff 0%, #fff 100%) padding-box,
+        var(--btn-gold-outline-border) border-box;
+    background-clip: padding-box, border-box;
+    background-origin: border-box;
+    transition: all 0.3s ease;
+    box-shadow: none;
+}
+
+.btn-gold-outline:hover,
+.elementor-button.btn-gold-outline:hover {
+    color: #fff !important;
+    background: var(--btn-gold-outline-hover-bg) !important;
+    box-shadow: 0 4px 10px rgba(255, 183, 0, 0.4);
+    transform: translateY(-2px);
+    border: none;
+}
+
+/* ===============================
+   BUTTON GOLD SOLID STYLE
+   =============================== */
+.btn-gold {
+    display: inline-block;
+    padding: 12px 32px;
+    font-weight: 600;
+    text-transform: capitalize;
+    color: var(--btn-text-color) !important;
+    border-radius: 50px;
+    border: none;
+    background: var(--btn-gold-gradient) !important;
+    box-shadow: 0 4px 10px rgba(255, 183, 0, 0.4);
+    transition: all 0.3s ease;
+}
+
+.btn-gold:hover {
+    background: var(--btn-gold-hover) !important;
+    transform: translateY(-2px);
+}
+
+.custom-shape-divider {
+    position: relative;
+    overflow: hidden;
+}
+
+.custom-shape-divider::after {
+    content: "";
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: 100%;
+    height: 220px;
+    /* Sesuaikan tinggi kurva */
+    background: url('https://hashiwa.tokoweb.live/wp-content/uploads/2025/11/Vector-121.png') no-repeat center bottom;
+    background-size: cover;
+    z-index: 1;
+    pointer-events: none;
 }
