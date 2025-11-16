@@ -3,22 +3,20 @@
   --gold-mid: #e8c547;
   --gold: #d4af37;
   --gold-dark: #b8860b;
-	--default-red: #ab0c2f;
+  --default-red: #ab0c2f;
 
   /* tombol gradasi solid */
   --btn-gold-gradient: linear-gradient(90deg, #FFD700 0%, #FFB700 50%, #FFD700 100%);
   --btn-gold-hover: linear-gradient(90deg, #FFB700 0%, #FFD700 50%, #FFB700 100%);
   --btn-text-color: #ffffff;
-	--btn-text-outline: #d4af37;
+  --btn-text-outline: #d4af37;
 
   /* gradasi emas realistik untuk border */
-  --gold-gradient: linear-gradient(
-    135deg,
-    var(--gold-light) 0%,
-    var(--gold-mid) 25%,
-    var(--gold) 60%,
-    var(--gold-dark) 100%
-  );
+  --gold-gradient: linear-gradient(135deg,
+      var(--gold-light) 0%,
+      var(--gold-mid) 25%,
+      var(--gold) 60%,
+      var(--gold-dark) 100%);
 
   /* tambahkan var khusus untuk outline border */
   --btn-gold-outline-border: var(--gold-gradient);
@@ -40,8 +38,8 @@
   color: var(--btn-gold-outline-text) !important;
   border-radius: 50px;
   border: 2px solid transparent;
-  background: 
-    linear-gradient(135deg, #fff 0%, #fff 100%) padding-box, 
+  background:
+    linear-gradient(135deg, #fff 0%, #fff 100%) padding-box,
     var(--btn-gold-outline-border) border-box;
   background-clip: padding-box, border-box;
   background-origin: border-box;
@@ -55,7 +53,7 @@
   background: var(--btn-gold-outline-hover-bg) !important;
   box-shadow: 0 4px 10px rgba(255, 183, 0, 0.4);
   transform: translateY(-2px);
-	border: none;
+  border: none;
 }
 
 /* ===============================
@@ -70,12 +68,12 @@
 .custom-shape-divider::after {
   content: "";
   position: absolute;
-  bottom: -23px; /* posisi default desktop */
+  bottom: -23px;
+  /* posisi default desktop */
   left: 0;
   width: 100%;
   height: 260px;
-  background: url('https://hashiwa.tokoweb.live/wp-content/uploads/2025/11/Vector-122.png')
-              no-repeat center bottom;
+  background: url('https://hashiwa.tokoweb.live/wp-content/uploads/2025/11/Vector-122.png') no-repeat center bottom;
   background-size: cover;
   z-index: 5 !important;
   pointer-events: none;
@@ -237,8 +235,9 @@ a.button.outline-gold:hover,
   background: var(--btn-gold-hover) !important;
   transform: rotate(90deg);
 }
-.tp-section-3-title span{
-	color: var(--default-red) !important
+
+.tp-section-3-title span {
+  color: var(--default-red) !important
 }
 
 /* ========================================
@@ -309,45 +308,28 @@ a.button.outline-gold:hover,
 }
 
 /* ========================================
-   HASHIWA NEWSLETTER FORM STYLE
+   HASHIWA NEWSLETTER FORM STYLE (LEFT BUTTON)
    ======================================== */
 
 .newsletter-wrapper {
   width: 100%;
-  background: #fff;
-  padding: 50px 30px;
-  border-radius: 20px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.06);
-  text-align: center;
+  background: transparent;
   max-width: 800px;
   margin: 0 auto;
 }
 
-.newsletter-text h3 {
-  font-size: 24px;
-  font-weight: 700;
-  color: #1a1a1a;
-  margin-bottom: 8px;
-}
-
-.newsletter-text p {
-  font-size: 15px;
-  color: #666;
-  margin-bottom: 24px;
-}
-
 .newsletter-form {
   display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  /* ✅ ubah jadi kolom */
+  align-items: flex-start;
+  /* ✅ rata kiri */
+  gap: 10px;
 }
 
 /* input email */
 .newsletter-input {
-  flex: 1;
-  min-width: 240px;
+  width: 100%;
   max-width: 400px;
   padding: 12px 16px;
   border: 2px solid #eee;
@@ -361,7 +343,6 @@ a.button.outline-gold:hover,
 .newsletter-input:focus {
   border-color: var(--gold);
   background: #fff;
-  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.2);
   outline: none;
 }
 
@@ -377,6 +358,8 @@ a.button.outline-gold:hover,
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 4px 10px rgba(255, 183, 0, 0.4);
+  margin-top: 4px;
+  /* ✅ jarak kecil dari input */
 }
 
 .newsletter-btn:hover {
@@ -384,22 +367,15 @@ a.button.outline-gold:hover,
   transform: translateY(-2px);
 }
 
-/* Responsif */
+/* Responsif: tetap rapi di layar kecil */
 @media (max-width: 768px) {
-  .newsletter-wrapper {
-    padding: 32px 20px;
-  }
-
-  .newsletter-text h3 {
-    font-size: 20px;
-  }
-
-  .newsletter-form {
-    flex-direction: column;
+  .newsletter-input {
+    width: 100%;
   }
 
   .newsletter-btn {
-    width: 100%;
+    width: auto;
+    /* tetap kecil di bawah input */
   }
 }
 
@@ -429,8 +405,8 @@ a.button.outline-gold:hover,
 }
 
 .tp-offcanvas-area .tp-nav-menu .nav-links:hover,
-.tp-offcanvas-area .tp-nav-menu .current-menu-item > .nav-links,
-.tp-offcanvas-area .tp-nav-menu .active > .nav-links {
+.tp-offcanvas-area .tp-nav-menu .current-menu-item>.nav-links,
+.tp-offcanvas-area .tp-nav-menu .active>.nav-links {
   color: #000 !important;
 }
 
@@ -450,7 +426,8 @@ a.button.outline-gold:hover,
   .custom-shape-divider::after {
     bottom: -15px;
     height: 180px;
-    background-size: contain; /* supaya tidak terpotong */
+    background-size: contain;
+    /* supaya tidak terpotong */
   }
 }
 
@@ -466,7 +443,7 @@ a.button.outline-gold:hover,
 /* Responsif extra kecil (hp kecil) */
 @media (max-width: 480px) {
   .custom-shape-divider::after {
-		z-index: 5;
+    z-index: 5;
     bottom: 15px;
     height: 150px;
     background-size: contain;
