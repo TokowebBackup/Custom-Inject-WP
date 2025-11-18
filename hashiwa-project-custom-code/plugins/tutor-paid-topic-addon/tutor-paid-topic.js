@@ -1,43 +1,58 @@
 document.addEventListener("DOMContentLoaded", () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const courseId = urlParams.get('course_id');
 
-    // 🧩 Fungsi untuk menambahkan badge harga ke semua judul topik
+    // Jangan lanjut kalau bukan halaman course builder
+    if (!courseId) return;
+
+    let renderTimeout;
+    let lastRender = 0;
+
+    // 🧩 Render badge harga di semua topic (throttled)
     const renderAllTopicPrices = () => {
-        document.querySelectorAll('.css-1uvctym').forEach(topic => {
-            const titleEl = topic.querySelector('.css-1jlm4v3');
-            if (!titleEl || topic.dataset.tptRendered) return;
-            topic.dataset.tptRendered = true;
+        const now = Date.now();
+        if (now - lastRender < 3000) return; // maksimal 1x per 3 detik
+        lastRender = now;
 
-            const topicTitle = titleEl.textContent.trim();
-            if (!topicTitle) return;
+        clearTimeout(renderTimeout);
+        renderTimeout = setTimeout(() => {
+            const topics = document.querySelectorAll('.css-1uvctym');
+            if (!topics.length) return;
 
-            // Ambil harga via REST API
-            fetch(`${TPT_Ajax.resturl}get-price?title=${encodeURIComponent(topicTitle)}`, {
-                headers: { 'X-WP-Nonce': TPT_Ajax.nonce }
-            })
-                .then(res => res.json())
-                .then(data => {
-                    if (data?.price && data.price > 0) {
-                        const badge = document.createElement('span');
-                        badge.className = 'tpt-price-badge';
-                        badge.textContent = `Rp ${Number(data.price).toLocaleString()}`;
-                        badge.style.marginLeft = '10px';
-                        badge.style.fontSize = '13px';
-                        badge.style.background = '#ED2D56';
-                        badge.style.color = '#fff';
-                        badge.style.padding = '2px 8px';
-                        badge.style.borderRadius = '8px';
-                        badge.style.fontWeight = '600';
-                        badge.style.display = 'inline-block';
-                        badge.style.verticalAlign = 'middle';
-                        titleEl.appendChild(badge);
-                    }
-                });
-        });
+            topics.forEach(topic => {
+                const titleEl = topic.querySelector('.css-1jlm4v3');
+                if (!titleEl) return;
+
+                const topicTitle = titleEl.textContent.trim();
+                if (!topicTitle) return;
+
+                // Hapus badge lama biar update
+                titleEl.querySelectorAll('.tpt-price-badge').forEach(b => b.remove());
+
+                fetch(`${TPT_Ajax.resturl}get-price?title=${encodeURIComponent(topicTitle)}&course_id=${courseId}`, {
+                    headers: { 'X-WP-Nonce': TPT_Ajax.nonce }
+                })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data?.price && data.price > 0) {
+                            const badge = document.createElement('span');
+                            badge.className = 'tpt-price-badge';
+                            badge.textContent = `Rp ${Number(data.price).toLocaleString()}`;
+                            badge.style.cssText = `
+                                margin-left:10px;font-size:13px;background:#ED2D56;color:#fff;
+                                padding:2px 8px;border-radius:8px;font-weight:600;
+                                display:inline-block;vertical-align:middle;
+                            `;
+                            titleEl.appendChild(badge);
+                        }
+                    })
+                    .catch(err => console.warn("Fetch error (get-price):", err));
+            });
+        }, 800);
     };
 
-    // 🧭 MutationObserver: pantau munculnya elemen edit modal & daftar topik
-    const observer = new MutationObserver(() => {
-        // ✳️ Tambah input harga di modal editor
+    // 🧱 Tambahkan input harga ke modal editor
+    const attachTopicEditor = () => {
         document.querySelectorAll('.css-oks3g7').forEach(topicEl => {
             if (topicEl.querySelector('.tutor-topic-price')) return;
 
@@ -45,36 +60,26 @@ document.addEventListener("DOMContentLoaded", () => {
             input.type = 'number';
             input.placeholder = 'Masukkan harga topik (Rp)';
             input.className = 'tutor-input-field tutor-topic-price';
-            input.style.marginTop = '10px';
-            input.style.width = '100%';
-            input.style.border = '1px solid #ddd';
-            input.style.padding = '6px';
-            input.style.borderRadius = '8px';
-
+            input.style.cssText = 'margin-top:10px;width:100%;border:1px solid #ddd;padding:6px;border-radius:8px;';
             const wrapper = topicEl.querySelector('.css-15gb5bw');
             if (wrapper) wrapper.after(input);
 
             const titleInput = topicEl.querySelector('input[name="title"]');
-
-            // Ambil harga lama
-            if (titleInput && titleInput.value) {
-                fetch(`${TPT_Ajax.resturl}get-price?title=${encodeURIComponent(titleInput.value)}`, {
+            if (titleInput?.value) {
+                fetch(`${TPT_Ajax.resturl}get-price?title=${encodeURIComponent(titleInput.value)}&course_id=${courseId}`, {
                     headers: { 'X-WP-Nonce': TPT_Ajax.nonce }
                 })
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data?.price) input.value = data.price;
-                    });
+                    .then(r => r.json())
+                    .then(data => { if (data?.price) input.value = data.price; });
             }
 
-            // Simpan harga saat klik OK
             const saveBtn = topicEl.querySelector('button[data-cy="save-topic"]');
             if (saveBtn && !saveBtn.dataset.tptBound) {
                 saveBtn.dataset.tptBound = true;
                 saveBtn.addEventListener('click', () => {
-                    const title = titleInput.value;
+                    const title = titleInput?.value?.trim();
                     const price = input.value;
-                    if (!title) return;
+                    if (!title || !courseId) return;
 
                     fetch(`${TPT_Ajax.resturl}save-price`, {
                         method: 'POST',
@@ -82,27 +87,69 @@ document.addEventListener("DOMContentLoaded", () => {
                             'Content-Type': 'application/json',
                             'X-WP-Nonce': TPT_Ajax.nonce
                         },
-                        body: JSON.stringify({ title, price })
+                        body: JSON.stringify({ title, price, course_id: courseId })
                     })
-                        .then(res => res.json())
+                        .then(r => r.json())
                         .then(resp => {
-                            console.log('Tutor Paid Topic:', resp.message || 'Saved');
-                            // render ulang daftar harga setelah disimpan
-                            setTimeout(() => {
-                                document.querySelectorAll('.tpt-price-badge').forEach(b => b.remove());
-                                renderAllTopicPrices();
-                            }, 1000);
-                        });
+                            console.log('💾 Saved:', resp);
+                            if (resp.synced) {
+                                // 🔄 Coba update Regular Price dengan retry sampai elemen muncul
+                                let retry = 0;
+                                const tryUpdateRegularPrice = () => {
+                                    const regularPriceInput = document.querySelector('input[name="course_price"]');
+                                    if (regularPriceInput) {
+                                        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+                                            window.HTMLInputElement.prototype,
+                                            "value"
+                                        ).set;
+                                        nativeInputValueSetter.call(regularPriceInput, price);
+
+                                        const inputEvent = new Event("input", { bubbles: true });
+                                        const changeEvent = new Event("change", { bubbles: true });
+                                        regularPriceInput.dispatchEvent(inputEvent);
+                                        regularPriceInput.dispatchEvent(changeEvent);
+
+                                        console.log("✅ Regular Price field found and updated:", price);
+
+                                        // Refresh tab agar React sinkron
+                                        const basicsTab = document.querySelector('a[href="#/basics"]');
+                                        if (basicsTab) {
+                                            basicsTab.click();
+                                            console.log("🌀 Refreshing Basics tab...");
+                                            setTimeout(() => {
+                                                const curriculumTab = document.querySelector('a[href="#/curriculum"]');
+                                                if (curriculumTab) curriculumTab.click();
+                                            }, 1500);
+                                        }
+                                    } else if (retry < 10) {
+                                        retry++;
+                                        console.log("⏳ Regular Price field not found yet... retry", retry);
+                                        setTimeout(tryUpdateRegularPrice, 500);
+                                    } else {
+                                        console.warn("❌ Regular Price input never appeared in DOM");
+                                    }
+                                };
+                                tryUpdateRegularPrice();
+                            }
+                        })
+
+                        .catch(err => console.error('REST Error:', err));
                 });
             }
         });
+    };
 
-        // 🔁 Pastikan badge muncul juga di daftar utama Curriculum
+    // 🧭 Observer: pantau perubahan tapi batasi trigger
+    const observer = new MutationObserver(() => {
+        attachTopicEditor();
         renderAllTopicPrices();
     });
 
     observer.observe(document.body, { childList: true, subtree: true });
 
-    // Render awal (jaga-jaga observer belum jalan)
-    setTimeout(renderAllTopicPrices, 1500);
+    // Jalankan awal (1.5 detik delay)
+    setTimeout(() => {
+        attachTopicEditor();
+        renderAllTopicPrices();
+    }, 1500);
 });

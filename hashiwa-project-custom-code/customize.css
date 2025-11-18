@@ -415,12 +415,6 @@ a.button.outline-gold:hover,
   color: #000 !important;
 }
 
-.tp-offcanvas-area h3 {
-  color: #000 !important;
-}
-
-
-
 /* Responsif tablet */
 @media (max-width: 1024px) {
   .custom-shape-divider::after {

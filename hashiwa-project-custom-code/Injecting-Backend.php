@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Add Custom Post Type "Kontak Informasi" inside Tutor LMS menu
  * 
@@ -7,7 +8,8 @@
  * @description Customisasi dashboard admin.
  */
 
-function newsletter_signup_form_shortcode() {
+function newsletter_signup_form_shortcode()
+{
     return '
     <form action="https://your-newsletter-service.com/subscribe" method="post" target="_blank" novalidate>
       <label for="email" style="display:block; margin-bottom: 8px;">Subscribe to our newsletter:</label>
@@ -17,22 +19,24 @@ function newsletter_signup_form_shortcode() {
 }
 add_shortcode('newsletter_signup', 'newsletter_signup_form_shortcode');
 
-function register_custom_menu_location() {
+function register_custom_menu_location()
+{
     register_nav_menu('bottom-menu', 'Bottom Navbar Menu');
 }
 add_action('after_setup_theme', 'register_custom_menu_location');
 
-function custom_admin_dashboard_text() {
+function custom_admin_dashboard_text()
+{
     global $wp_version;
-    
+
     // Ganti teks "Welcome to WordPress!" menjadi sesuai keinginan Anda
     $welcome_text = 'HASHIWA JAPANESE ACADEMY';
-    
+
     // Ganti teks "Learn more about the 6.5.5 version." sesuai keinginan Anda
     $version_text = 'Bridge Beyond Border';
-    
+
     // Mengganti teks menggunakan filter
-    add_filter('gettext', function($translated_text, $text, $domain) use ($welcome_text, $version_text, $wp_version) {
+    add_filter('gettext', function ($translated_text, $text, $domain) use ($welcome_text, $version_text, $wp_version) {
         if ($text === 'Welcome to WordPress!') {
             $translated_text = $welcome_text;
         }
@@ -44,7 +48,8 @@ function custom_admin_dashboard_text() {
 }
 add_action('admin_init', 'custom_admin_dashboard_text');
 
-function move_menus_to_top() {
+function move_menus_to_top()
+{
     global $menu;
 
     $snippets_key = null;
@@ -64,10 +69,11 @@ function move_menus_to_top() {
 }
 add_action('admin_menu', 'move_menus_to_top', 9);
 
-function replace_admin_menu_icons() {
-	$base_url = esc_url( home_url() ); 
+function replace_admin_menu_icons()
+{
+    $base_url = esc_url(home_url());
     $icon_path = '/wp-content/uploads/2025/11/fav-1-1-2.webp'; // path relatif ke root
-    ?>
+?>
     <style>
         /* Hapus dashicon bawaan */
         #toplevel_page_snippets .wp-menu-image.dashicons-before::before {
@@ -136,7 +142,7 @@ function restrict_snippets_access_by_password()
         if ($password !== $allowed_password) {
             add_action('admin_footer', function () use ($password) {
                 $wrong_pw = $password !== '';
-            ?>
+    ?>
                 <script>
                     document.addEventListener('DOMContentLoaded', function() {
 
@@ -196,9 +202,105 @@ function restrict_snippets_access_by_password()
 
                     });
                 </script>
-            <?php
+        <?php
             });
         }
     }
 }
 
+
+// 🔧 Ganti nama menu utama Tutor LMS di sidebar admin
+add_action('admin_menu', function () {
+    global $menu;
+    foreach ($menu as $key => $item) {
+        if (isset($item[2]) && $item[2] === 'tutor') {
+            $menu[$key][0] = 'Hashiwa LMS'; // ubah label menu
+            break;
+        }
+    }
+}, 999);
+
+// 🔧 Sembunyikan kolom Price di halaman admin Tutor LMS menggunakan CSS
+add_action('admin_head', function () {
+    $screen = get_current_screen();
+    if ($screen && $screen->id === 'tutor_page_tutor') {
+        echo '<style>
+            /* Sembunyikan header kolom Price */
+            .tutor-table thead th:nth-child(4) {
+                display: none !important;
+            }
+
+            /* Sembunyikan kolom data Price */
+            .tutor-table tbody td:nth-child(4),
+            .tutor-table .list-item-price,
+            .tutor-table td .tutor-item-price,
+            .tutor-table td div.list-item-price span {
+                display: none !important;
+            }
+
+            /* Atur ulang lebar kolom biar gak bolong */
+            .tutor-table thead th,
+            .tutor-table tbody td {
+                width: auto !important;
+            }
+        </style>';
+    }
+});
+
+/**
+ * Tutor LMS: Force enable delete/trash order (bulk action)
+ */
+
+// 1️⃣ Tambahkan opsi Trash di bulk action Tutor LMS
+add_filter('tutor_order_bulk_actions', function ($actions) {
+    if (!isset($actions['trash'])) {
+        $actions['trash'] = __('Trash', 'tutor');
+    }
+    return $actions;
+});
+
+// 2️⃣ Tangkap bulk action Trash Tutor LMS
+add_action('tutor_orders_bulk_action_trash', function ($order_ids) {
+    if (is_array($order_ids) && count($order_ids) > 0) {
+        foreach ($order_ids as $order_id) {
+            wp_trash_post(intval($order_id));
+        }
+    }
+    wp_safe_redirect(admin_url('admin.php?page=tutor_orders'));
+    exit;
+});
+
+// 3️⃣ Inject checkbox array yang benar di table
+add_action('admin_footer', function () {
+    $screen = get_current_screen();
+    if ($screen && $screen->id === 'tutor_page_tutor_orders') : ?>
+        <script>
+            jQuery(document).ready(function($) {
+                // Loop tiap row table
+                $('.tutor-table tbody tr').each(function() {
+                    var $row = $(this);
+                    var link = $row.find('a[href*="action=edit&id="]').attr('href');
+                    if (link) {
+                        var id = link.match(/id=(\d+)/)[1];
+                        var $chk = $row.find('td:first input[type="checkbox"]');
+                        if ($chk.length === 0) {
+                            $row.find('td:first').prepend('<input type="checkbox" class="tutor-form-check-input">');
+                            $chk = $row.find('td:first input[type="checkbox"]');
+                        }
+                        $chk.attr({
+                            'name': 'tutor-bulk-checkbox[]',
+                            'value': id
+                        });
+                    }
+                });
+
+                // Checkbox "Select All"
+                $('#tutor-bulk-checkbox-all').on('change', function() {
+                    var checked = $(this).is(':checked');
+                    $('input[name="tutor-bulk-checkbox[]"]').prop('checked', checked);
+                });
+            });
+        </script>
+<?php
+    endif;
+});

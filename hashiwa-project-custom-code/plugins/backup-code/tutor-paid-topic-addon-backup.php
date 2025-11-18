@@ -1025,3 +1025,140 @@ add_action('admin_footer', function () {
 });
 
 ?>
+
+
+
+// Titip backup terbaru 18 Nov 2025 - 10:50PM 
+<?php
+/*
+Plugin Name: Tutor Paid Topic Addon (Rupiah) - Stable v1.6.1
+Description: Simpan harga per topic per course di Tutor LMS React Builder. Fix REST + visual badge.
+Version: 1.6.1
+Author: Puji Ermanto
+*/
+
+if (!defined('ABSPATH')) exit;
+
+/* =======================================================
+   1️⃣ Buat tabel custom
+======================================================= */
+register_activation_hook(__FILE__, function () {
+    global $wpdb;
+    // $table = "{$wpdb->prefix}tutor_topic_price";
+    $table = "wpsu_tutor_topic_price"; // hardcode ke tabel yang benar
+
+    $charset = $wpdb->get_charset_collate();
+
+    $sql = "CREATE TABLE IF NOT EXISTS $table (
+        id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+        course_id BIGINT(20) UNSIGNED NOT NULL,
+        topic_title VARCHAR(255) NOT NULL,
+        price INT(11) DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        UNIQUE KEY unique_topic (course_id, topic_title)
+    ) $charset;";
+
+    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+    dbDelta($sql);
+});
+
+/* =======================================================
+   2️⃣ Enqueue JS
+======================================================= */
+add_action('admin_enqueue_scripts', function ($hook) {
+    if (strpos($hook, 'tutor') === false) return;
+
+    wp_enqueue_script(
+        'tpt-addon-script',
+        plugin_dir_url(__FILE__) . 'tutor-paid-topic.js',
+        ['jquery'],
+        '1.6.1',
+        true
+    );
+
+    wp_localize_script('tpt-addon-script', 'TPT_Ajax', [
+        'resturl' => esc_url(rest_url('tutor-paid-topic/v1/')),
+        'nonce'   => wp_create_nonce('wp_rest')
+    ]);
+});
+
+/* =======================================================
+   3️⃣ REST API
+======================================================= */
+add_action('rest_api_init', function () {
+    global $wpdb;
+    $table = "{$wpdb->prefix}tutor_topic_price";
+
+    register_rest_route('tutor-paid-topic/v1', '/save-price', [
+        'methods' => 'POST',
+        'callback' => function ($req) {
+            global $wpdb;
+            $table = "wpsu_tutor_topic_price"; // ← fix prefix
+            $data = $req->get_json_params();
+            $title = sanitize_text_field($data['title'] ?? '');
+            $price = intval($data['price'] ?? 0);
+            $course_id = intval($data['course_id'] ?? 0);
+
+            if (!$title || !$course_id) {
+                return new WP_Error('invalid_data', 'Judul atau Course ID kosong.', ['status' => 400]);
+            }
+
+            $wpdb->show_errors();
+            $wpdb->replace($table, [
+                'course_id'   => $course_id,
+                'topic_title' => $title,
+                'price'       => $price
+            ]);
+            error_log("Tutor Paid Topic | SQL: " . $wpdb->last_query);
+            error_log("Tutor Paid Topic | Error: " . $wpdb->last_error);
+
+            return ['success' => true, 'message' => "Harga topik '{$title}' disimpan (Rp {$price})"];
+        },
+        'permission_callback' => '__return_true'
+    ]);
+
+
+    register_rest_route('tutor-paid-topic/v1', '/get-price', [
+        'methods' => 'GET',
+        'callback' => function ($req) use ($wpdb, $table) {
+            $title = sanitize_text_field($req['title'] ?? '');
+            $course_id = intval($req['course_id'] ?? 0);
+
+            if (!$title || !$course_id) return ['price' => 0];
+
+            $data = $wpdb->get_row($wpdb->prepare(
+                "SELECT price FROM $table WHERE course_id = %d AND topic_title = %s",
+                $course_id,
+                $title
+            ));
+            return $data ?: ['price' => 0];
+        },
+        'permission_callback' => '__return_true'
+    ]);
+});
+
+/* =======================================================
+   4️⃣ Sembunyikan harga bawaan Tutor LMS
+======================================================= */
+add_action('admin_print_footer_scripts', function () {
+?>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const hidePriceFields = () => {
+                document.querySelectorAll('.css-1xhi066 [data-cy="form-field-wrapper"]').forEach(wrapper => {
+                    const label = wrapper.querySelector('label');
+                    if (!label) return;
+                    const text = label.textContent.trim();
+                    if (text === 'Regular Price' || text === 'Sale Price') wrapper.style.display = 'none';
+                });
+            };
+            const obs = new MutationObserver(() => hidePriceFields());
+            obs.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+        });
+    </script>
+<?php
+});
