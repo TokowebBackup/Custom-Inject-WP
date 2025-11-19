@@ -1,4 +1,6 @@
 # Tutor Paid Topic Addon (Rupiah)
+<img width="1917" height="958" alt="Screenshot 2025-11-19 115643" src="https://github.com/user-attachments/assets/8b89670c-b93b-40e6-9fe1-cd47f119d88f" />
+
 <img width="1919" height="964" alt="Screenshot 2025-11-17 214448" src="https://github.com/user-attachments/assets/3a7764c2-5b0d-466c-9d42-5c832fff78cf" />
 
 Addon kustom untuk **Tutor LMS React Course Builder** yang memungkinkan kamu menambahkan **harga per topik/bab (Topic Price)** secara dinamis menggunakan REST API, dan menyembunyikan seluruh sistem harga default (Regular/Sale Price) di tab *Basics*.

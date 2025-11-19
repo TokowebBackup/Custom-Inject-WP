@@ -25,11 +25,14 @@ add_action('plugins_loaded', 'custom_contact_widget_dependencies');
 function custom_register_kontak_widget($widgets_manager)
 {
     require_once(__DIR__ . '/widgets/kontak-widget.php');
+    require_once(__DIR__ . '/widgets/kontak-contact-page-widget.php');
 
     if (class_exists('Custom_Kontak_Widget')) {
         $widgets_manager->register(new \Custom_Kontak_Widget());
-    } else {
-        error_log('Custom_Kontak_Widget class not found!');
+    }
+
+    if (class_exists('Custom_Kontak_Contact_Page_Widget')) {
+        $widgets_manager->register(new \Custom_Kontak_Contact_Page_Widget());
     }
 }
 add_action('elementor/widgets/register', 'custom_register_kontak_widget');
