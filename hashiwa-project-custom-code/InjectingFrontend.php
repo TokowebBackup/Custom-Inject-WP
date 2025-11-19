@@ -732,8 +732,6 @@ add_action('wp_footer', function () {
         });
     </script>
 
-
-
     <style>
         /* Styling harga baru */
         .tpt-course-price-wrapper {

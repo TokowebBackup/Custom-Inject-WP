@@ -1,5 +1,6 @@
 # Plugin: Kontak Informasi – Integrasi Tutor LMS
 <img width="1909" height="915" alt="Screenshot 2025-11-12 233431" src="https://github.com/user-attachments/assets/e7b0e163-2f69-48a3-b911-531fec7bd23b" />
+<img width="1919" height="915" alt="Screenshot 2025-11-20 020143" src="https://github.com/user-attachments/assets/88592b77-fdd7-4ee6-9297-f3ecf91f7001" />
 
 **Versi:** 1.2  
 **Penulis:** Puji Ermanto  

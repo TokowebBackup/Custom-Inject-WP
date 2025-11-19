@@ -1,5 +1,5 @@
 # Tutor Paid Topic Addon (Rupiah)
-<img width="1917" height="958" alt="Screenshot 2025-11-19 115643" src="https://github.com/user-attachments/assets/8b89670c-b93b-40e6-9fe1-cd47f119d88f" />
+<img width="1920" height="2367" alt="2144a658-5638-4e85-9bcb-29118a24cba0" src="https://github.com/user-attachments/assets/93f2018b-7007-4ca0-a49f-901f7d604eb9" />
 
 <img width="1919" height="964" alt="Screenshot 2025-11-17 214448" src="https://github.com/user-attachments/assets/3a7764c2-5b0d-466c-9d42-5c832fff78cf" />
 

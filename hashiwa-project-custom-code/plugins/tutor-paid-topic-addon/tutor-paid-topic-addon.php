@@ -442,6 +442,7 @@ add_action('wp_footer', function () {
     </script>
 <?php
 });
+
 /* =======================================================
    8️⃣ Dashboard Course Enhancement: Description + Progress + Price + Lock
 ======================================================= */
@@ -568,5 +569,45 @@ add_action('wp_footer', function () {
             });
         });
     </script>
+    <?php
+});
+
+
+/* =======================================================
+   9️⃣ Replace Tutor LMS Logo with Hashiwa LMS Logo in Admin
+======================================================= */
+add_action('admin_footer', function () {
+    $screen = get_current_screen();
+    if ($screen && $screen->id === 'tutor_course_page_create-course') :
+    ?>
+        <script>
+            (function() {
+                function replaceTutorLogo() {
+                    const btn = document.querySelector('button.css-1wb3486');
+                    if (!btn) return;
+
+                    const svg = btn.querySelector('svg');
+                    if (svg && !svg.dataset.replaced) {
+                        svg.outerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 108 24" width="108" height="24" data-replaced="true">
+                        <path fill="#ED2D56" d="M10 0h88v24H10z"/>
+                        <text x="54" y="16" font-size="12" font-family="Arial" fill="#fff" text-anchor="middle">Hashiwa LMS</text>
+                    </svg>
+                `;
+                    }
+                }
+
+                // Observe seluruh body, tapi filter hanya perubahan di button
+                const observer = new MutationObserver(() => replaceTutorLogo());
+                observer.observe(document.body, {
+                    childList: true,
+                    subtree: true
+                });
+
+                // Jalankan sekali langsung
+                replaceTutorLogo();
+            })();
+        </script>
 <?php
+    endif;
 });
