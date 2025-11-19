@@ -691,6 +691,48 @@ add_action('wp_footer', function () {
         });
     </script>
 
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.tutor-video-player .tutorPlayer').forEach(video => {
+                const source = video.querySelector('source');
+                if (!source) return;
+
+                let src = source.src;
+                if (!src) return;
+
+                // jika format watch?v=, ubah jadi embed
+                const ytMatch = src.match(/youtube\.com\/watch\?v=([^\&\?]+)/);
+                if (ytMatch && ytMatch[1]) {
+                    src = `https://www.youtube.com/embed/${ytMatch[1]}`;
+                }
+
+                // cek sudah embed atau tidak
+                if (!src.includes('youtube.com/embed')) return;
+
+                const iframe = document.createElement('iframe');
+                iframe.src = src;
+                iframe.allow = "autoplay; fullscreen";
+                iframe.allowFullscreen = true;
+                iframe.style.border = '0';
+                iframe.style.width = '100%';
+
+                // Hitung tinggi proporsional 16:9 berdasarkan width parent
+                const parentWidth = video.parentNode.offsetWidth;
+                iframe.style.height = `${parentWidth * 9 / 16}px`;
+
+                // Replace video dengan iframe
+                video.parentNode.replaceChild(iframe, video);
+
+                // Optional: update height saat resize window
+                window.addEventListener('resize', () => {
+                    const newWidth = iframe.parentNode.offsetWidth;
+                    iframe.style.height = `${newWidth * 9 / 16}px`;
+                });
+            });
+        });
+    </script>
+
+
 
     <style>
         /* Styling harga baru */
@@ -779,6 +821,22 @@ add_action('wp_footer', function () {
         /* Pastikan ikon dan teks rata tengah */
         .tutor-course-booking-availability .list-item-button .tutor-icon-cart-line {
             margin-right: 8px !important;
+        }
+
+        /* Buat wrapper responsive 16:9 (fallback jika JS gagal) */
+        .tutor-video-player {
+            width: 100%;
+            max-width: 900px;
+            /* optional */
+            margin: 2rem auto;
+            position: relative;
+        }
+
+        .tutor-video-player iframe {
+            display: block;
+            width: 100%;
+            height: auto;
+            /* height JS akan override ini */
         }
     </style>
 <?php

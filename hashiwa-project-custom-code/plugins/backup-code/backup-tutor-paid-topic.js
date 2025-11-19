@@ -2,27 +2,29 @@ document.addEventListener("DOMContentLoaded", () => {
     const urlParams = new URLSearchParams(window.location.search);
     const courseId = urlParams.get('course_id');
 
+    // Jangan lanjut kalau bukan halaman course builder
     if (!courseId) return;
 
     let renderTimeout;
     let lastRender = 0;
 
-    // 🔹 Render badge harga di semua topic (throttled)
+    // 🧩 Render badge harga di semua topic (throttled)
     const renderAllTopicPrices = () => {
         const now = Date.now();
-        if (now - lastRender < 3000) return;
+        if (now - lastRender < 3000) return; // maksimal 1x per 3 detik
         lastRender = now;
 
         clearTimeout(renderTimeout);
         renderTimeout = setTimeout(() => {
-            const titleEls = document.querySelectorAll('.css-1jlm4v3'); // Sesuaikan selector title topic
+            // Ubah selector: Langsung cari elemen title yang ada di semua topic
+            const titleEls = document.querySelectorAll('.css-1jlm4v3');
             if (!titleEls.length) return;
 
             titleEls.forEach(titleEl => {
-                const topicTitle = titleEl.textContent.trim().replace(/Rp \d+(?:,\d{3})*$/, '').trim();
+                const topicTitle = titleEl.textContent.trim().replace(/Rp \d+(?:,\d{3})*$/, '').trim(); // Hapus badge lama dari text jika ada
                 if (!topicTitle) return;
 
-                // Hapus badge lama
+                // Hapus badge lama biar update
                 titleEl.querySelectorAll('.tpt-price-badge').forEach(b => b.remove());
 
                 fetch(`${TPT_Ajax.resturl}get-price?title=${encodeURIComponent(topicTitle)}&course_id=${courseId}`, {
@@ -47,7 +49,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 800);
     };
 
-    // 🔹 Tambahkan input harga ke modal editor
+    // 🧱 Tambahkan input harga ke modal editor
     const attachTopicEditor = () => {
         document.querySelectorAll('.css-oks3g7').forEach(topicEl => {
             if (topicEl.querySelector('.tutor-topic-price')) return;
@@ -57,7 +59,6 @@ document.addEventListener("DOMContentLoaded", () => {
             input.placeholder = 'Masukkan harga topik (Rp)';
             input.className = 'tutor-input-field tutor-topic-price';
             input.style.cssText = 'margin-top:10px;width:100%;border:1px solid #ddd;padding:6px;border-radius:8px;';
-
             const wrapper = topicEl.querySelector('.css-15gb5bw');
             if (wrapper) wrapper.after(input);
 
@@ -89,8 +90,8 @@ document.addEventListener("DOMContentLoaded", () => {
                         .then(r => r.json())
                         .then(resp => {
                             console.log('💾 Saved:', resp);
-
                             if (resp.synced) {
+                                // 🔄 Coba update Regular Price dengan retry sampai elemen muncul
                                 let retry = 0;
                                 const tryUpdateRegularPrice = () => {
                                     const regularPriceInput = document.querySelector('input[name="course_price"]');
@@ -101,15 +102,18 @@ document.addEventListener("DOMContentLoaded", () => {
                                         ).set;
                                         nativeInputValueSetter.call(regularPriceInput, price);
 
-                                        ['input', 'change'].forEach(ev => {
-                                            regularPriceInput.dispatchEvent(new Event(ev, { bubbles: true }));
-                                        });
+                                        const inputEvent = new Event("input", { bubbles: true });
+                                        const changeEvent = new Event("change", { bubbles: true });
+                                        regularPriceInput.dispatchEvent(inputEvent);
+                                        regularPriceInput.dispatchEvent(changeEvent);
 
-                                        console.log("✅ Regular Price field updated:", price);
+                                        console.log("✅ Regular Price field found and updated:", price);
 
+                                        // Refresh tab agar React sinkron
                                         const basicsTab = document.querySelector('a[href="#/basics"]');
                                         if (basicsTab) {
                                             basicsTab.click();
+                                            console.log("🌀 Refreshing Basics tab...");
                                             setTimeout(() => {
                                                 const curriculumTab = document.querySelector('a[href="#/curriculum"]');
                                                 if (curriculumTab) curriculumTab.click();
@@ -117,21 +121,23 @@ document.addEventListener("DOMContentLoaded", () => {
                                         }
                                     } else if (retry < 10) {
                                         retry++;
+                                        console.log("⏳ Regular Price field not found yet... retry", retry);
                                         setTimeout(tryUpdateRegularPrice, 500);
                                     } else {
-                                        console.warn("❌ Regular Price input never appeared");
+                                        console.warn("❌ Regular Price input never appeared in DOM");
                                     }
                                 };
                                 tryUpdateRegularPrice();
                             }
                         })
+
                         .catch(err => console.error('REST Error:', err));
                 });
             }
         });
     };
 
-    // 🔹 Observer untuk semua DOM
+    // 🧭 Observer: pantau perubahan tapi batasi trigger
     const observer = new MutationObserver(() => {
         attachTopicEditor();
         renderAllTopicPrices();
@@ -139,7 +145,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     observer.observe(document.body, { childList: true, subtree: true });
 
-    // 🔹 Jalankan awal
+    // Jalankan awal (1.5 detik delay)
     setTimeout(() => {
         attachTopicEditor();
         renderAllTopicPrices();
