@@ -8,7 +8,10 @@ Plugin ini menambahkan *Custom Post Type* bernama **"Kontak Informasi"** ke dala
 Digunakan untuk menyimpan informasi kontak lembaga atau institusi, seperti alamat, email, telepon, dan media sosial.  
 Terdapat fitur **alamat dinamis**, memungkinkan admin menambahkan lebih dari satu alamat dengan mudah.
 
----
+---  
+
+#### Khusus untuk page contact widget elementor
+<img width="1913" height="961" alt="Screenshot 2025-11-19 135555" src="https://github.com/user-attachments/assets/b639de4d-9ebc-4b7c-8fc1-99edc4dd3850" />
 
 ## 🎯 Fitur Utama
 

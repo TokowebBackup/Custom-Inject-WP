@@ -313,3 +313,260 @@ add_action('wp_footer', function () {
     </script>
 <?php
 });
+
+/* =======================================================
+   8️⃣ Dashboard Course Enhancement: Description + Progress + Price + Lock
+======================================================= */
+add_action('wp_footer', function () {
+    if (!is_singular(['courses', 'tutor_course'])) return;
+
+    global $post, $wpdb;
+    $course_id = $post->ID;
+    $course_desc = get_post_field('post_content', $course_id);
+    $user_id = get_current_user_id();
+
+    // Hitung progress
+    $lessons = tutor_utils()->get_lessons($course_id);
+    $completed = 0;
+    if ($user_id && $lessons) {
+        foreach ($lessons as $lesson) {
+            $status = tutor_utils()->get_lesson_progress($lesson->ID, $user_id);
+            if ($status === 'completed') $completed++;
+        }
+    }
+    $total = count($lessons);
+    $percent = $total ? round(($completed / $total) * 100) : 0;
+?>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const wrapper = document.querySelector('.tutor-course-spotlight-wrapper');
+            if (!wrapper) return;
+
+            // 🔹 Tambahkan deskripsi
+            const descDiv = document.createElement('div');
+            descDiv.className = 'tpt-course-desc';
+            descDiv.style.cssText = 'margin-bottom:15px;padding:10px;border-left:4px solid #ED2D56;background:#fff;border-radius:6px;';
+            descDiv.innerHTML = `<?php echo wp_kses_post($course_desc); ?>`;
+            wrapper.prepend(descDiv);
+
+            // 🔹 Tambahkan progress bar
+            const progressDiv = document.createElement('div');
+            progressDiv.className = 'tpt-course-progress';
+            progressDiv.style.cssText = 'margin-bottom:15px;';
+            progressDiv.innerHTML = `
+        <div style="background:#f0f0f0;border-radius:8px;height:16px;overflow:hidden;">
+            <div style="width:<?php echo $percent; ?>%;background:#ED2D56;height:100%;transition:width 0.5s;"></div>
+        </div>
+        <small style="display:block;margin-top:4px;font-size:12px;color:#555;"><?php echo $percent; ?>% Completed</small>
+    `;
+            wrapper.prepend(progressDiv);
+
+            // 🔹 Lock lesson & tambahkan harga + Buy Topic
+            const sidebar = document.querySelector('.tutor-course-single-sidebar-wrapper');
+            if (!sidebar) return;
+
+            const topics = sidebar.querySelectorAll('.tutor-course-topic');
+            if (!topics.length) return;
+
+            topics.forEach((topic, i) => {
+                if (i === 0) return; // topik pertama tetap aktif
+
+                const header = topic.querySelector('.tutor-course-topic-title');
+                if (!header || header.querySelector('.tpt-locked')) return;
+
+                // 🔹 Badge Locked
+                const badge = document.createElement('span');
+                badge.className = 'tpt-locked';
+                badge.textContent = ' 🔒 Locked';
+                badge.style.cssText = 'color:#ED2D56;font-weight:600;margin-left:8px;';
+                header.appendChild(badge);
+
+                // 🔹 Ambil lesson link & ID
+                const lessons = topic.querySelectorAll('a[href*="/lessons/"], a[href*="/quizzes/"]');
+                if (!lessons.length) return;
+                const topicId = lessons[0].dataset.lessonId;
+
+                // 🔹 Badge Harga Topik
+                fetch(TPT_Ajax.resturl + 'get-price?title=' + encodeURIComponent(header.textContent.trim()) + '&course_id=<?php echo $course_id; ?>', {
+                        headers: {
+                            'X-WP-Nonce': TPT_Ajax.nonce
+                        }
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data?.price && data.price > 0) {
+                            const priceBadge = document.createElement('span');
+                            priceBadge.className = 'tpt-price-badge';
+                            priceBadge.textContent = `Rp ${Number(data.price).toLocaleString()}`;
+                            priceBadge.style.cssText = 'margin-left:10px;font-size:13px;background:#ED2D56;color:#fff;padding:2px 8px;border-radius:8px;font-weight:600;';
+                            header.appendChild(priceBadge);
+                        }
+                    });
+
+                // 🔹 Tombol Buy Topic
+                const buyBtn = document.createElement('button');
+                buyBtn.textContent = 'Buy Topic';
+                buyBtn.style.cssText = 'background:#ED2D56;color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-weight:600;margin-left:10px;';
+                header.appendChild(buyBtn);
+
+                buyBtn.addEventListener('click', e => {
+                    e.stopPropagation();
+                    fetch(TPT_Ajax.resturl + 'buy-topic', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-WP-Nonce': TPT_Ajax.nonce
+                            },
+                            body: JSON.stringify({
+                                topic_id: topicId
+                            })
+                        })
+                        .then(r => r.json())
+                        .then(resp => {
+                            if (resp.success) {
+                                badge.textContent = ' 🔓 Unlocked';
+                                buyBtn.remove();
+                                lessons.forEach(a => a.style.pointerEvents = 'auto');
+                                console.log('Topik dibuka!', resp);
+                            } else console.warn(resp);
+                        }).catch(console.error);
+                });
+
+                // 🔹 Lock lesson links
+                lessons.forEach(a => {
+                    a.style.pointerEvents = 'none';
+                    a.style.opacity = '0.5';
+                });
+            });
+        });
+    </script>
+<?php
+});
+/* =======================================================
+   8️⃣ Dashboard Course Enhancement: Description + Progress + Price + Lock
+======================================================= */
+add_action('wp_footer', function () {
+    if (!is_singular(['courses', 'tutor_course'])) return;
+
+    global $post, $wpdb;
+    $course_id = $post->ID;
+    $course_desc = get_post_field('post_content', $course_id);
+    $user_id = get_current_user_id();
+
+    // Hitung progress
+    $lessons = tutor_utils()->get_lessons($course_id);
+    $completed = 0;
+    if ($user_id && $lessons) {
+        foreach ($lessons as $lesson) {
+            $status = tutor_utils()->get_lesson_progress($lesson->ID, $user_id);
+            if ($status === 'completed') $completed++;
+        }
+    }
+    $total = count($lessons);
+    $percent = $total ? round(($completed / $total) * 100) : 0;
+?>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const wrapper = document.querySelector('.tutor-course-spotlight-wrapper');
+            if (!wrapper) return;
+
+            // 🔹 Tambahkan deskripsi
+            const descDiv = document.createElement('div');
+            descDiv.className = 'tpt-course-desc';
+            descDiv.style.cssText = 'margin-bottom:15px;padding:10px;border-left:4px solid #ED2D56;background:#fff;border-radius:6px;';
+            descDiv.innerHTML = `<?php echo wp_kses_post($course_desc); ?>`;
+            wrapper.prepend(descDiv);
+
+            // 🔹 Tambahkan progress bar
+            const progressDiv = document.createElement('div');
+            progressDiv.className = 'tpt-course-progress';
+            progressDiv.style.cssText = 'margin-bottom:15px;';
+            progressDiv.innerHTML = `
+        <div style="background:#f0f0f0;border-radius:8px;height:16px;overflow:hidden;">
+            <div style="width:<?php echo $percent; ?>%;background:#ED2D56;height:100%;transition:width 0.5s;"></div>
+        </div>
+        <small style="display:block;margin-top:4px;font-size:12px;color:#555;"><?php echo $percent; ?>% Completed</small>
+    `;
+            wrapper.prepend(progressDiv);
+
+            // 🔹 Lock lesson & tambahkan harga + Buy Topic
+            const sidebar = document.querySelector('.tutor-course-single-sidebar-wrapper');
+            if (!sidebar) return;
+
+            const topics = sidebar.querySelectorAll('.tutor-course-topic');
+            if (!topics.length) return;
+
+            topics.forEach((topic, i) => {
+                if (i === 0) return; // topik pertama tetap aktif
+
+                const header = topic.querySelector('.tutor-course-topic-title');
+                if (!header || header.querySelector('.tpt-locked')) return;
+
+                // 🔹 Badge Locked
+                const badge = document.createElement('span');
+                badge.className = 'tpt-locked';
+                badge.textContent = ' 🔒 Locked';
+                badge.style.cssText = 'color:#ED2D56;font-weight:600;margin-left:8px;';
+                header.appendChild(badge);
+
+                // 🔹 Ambil lesson link & ID
+                const lessons = topic.querySelectorAll('a[href*="/lessons/"], a[href*="/quizzes/"]');
+                if (!lessons.length) return;
+                const topicId = lessons[0].dataset.lessonId;
+
+                // 🔹 Badge Harga Topik
+                fetch(TPT_Ajax.resturl + 'get-price?title=' + encodeURIComponent(header.textContent.trim()) + '&course_id=<?php echo $course_id; ?>', {
+                        headers: {
+                            'X-WP-Nonce': TPT_Ajax.nonce
+                        }
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data?.price && data.price > 0) {
+                            const priceBadge = document.createElement('span');
+                            priceBadge.className = 'tpt-price-badge';
+                            priceBadge.textContent = `Rp ${Number(data.price).toLocaleString()}`;
+                            priceBadge.style.cssText = 'margin-left:10px;font-size:13px;background:#ED2D56;color:#fff;padding:2px 8px;border-radius:8px;font-weight:600;';
+                            header.appendChild(priceBadge);
+                        }
+                    });
+
+                // 🔹 Tombol Buy Topic
+                const buyBtn = document.createElement('button');
+                buyBtn.textContent = 'Buy Topic';
+                buyBtn.style.cssText = 'background:#ED2D56;color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-weight:600;margin-left:10px;';
+                header.appendChild(buyBtn);
+
+                buyBtn.addEventListener('click', e => {
+                    e.stopPropagation();
+                    fetch(TPT_Ajax.resturl + 'buy-topic', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-WP-Nonce': TPT_Ajax.nonce
+                            },
+                            body: JSON.stringify({
+                                topic_id: topicId
+                            })
+                        })
+                        .then(r => r.json())
+                        .then(resp => {
+                            if (resp.success) {
+                                badge.textContent = ' 🔓 Unlocked';
+                                buyBtn.remove();
+                                lessons.forEach(a => a.style.pointerEvents = 'auto');
+                                console.log('Topik dibuka!', resp);
+                            } else console.warn(resp);
+                        }).catch(console.error);
+                });
+
+                // 🔹 Lock lesson links
+                lessons.forEach(a => {
+                    a.style.pointerEvents = 'none';
+                    a.style.opacity = '0.5';
+                });
+            });
+        });
+    </script>
+<?php
+});
