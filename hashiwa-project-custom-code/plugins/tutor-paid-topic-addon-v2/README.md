@@ -1,0 +1,2 @@
+##### Tutor Paid Topic Addon V2
+Adalah kebersambungan dari custom addon sebelumnya tutor paid topic addon, di versi 2 ini adalah pengembangan ke arah pro dimana setup untuk harga di sesuaikan kebutuhan misal untuk kebutuhan per topic
