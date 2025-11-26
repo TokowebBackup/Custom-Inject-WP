@@ -8,77 +8,6 @@ Author: Puji Ermanto
 
 if (!defined('ABSPATH')) exit;
 
-// Load frontend module
-if (file_exists(plugin_dir_path(__FILE__) . 'module/frontend.php')) {
-    require_once plugin_dir_path(__FILE__) . 'module/frontend.php';
-}
-
-// Load role & registration service
-// foreach (glob(plugin_dir_path(__FILE__) . 'service/*.php') as $service_file) {
-//     require_once $service_file;
-// }
-// =========================================================
-// Load service files setelah semua plugin lain siap
-// =========================================================
-add_action('plugins_loaded', function () {
-    $service_path = plugin_dir_path(__FILE__) . 'service/*.php';
-    foreach (glob($service_path) as $service_file) {
-        require_once $service_file;
-    }
-}, 20);
-
-// Hanya load manual kalau ingin pastikan ini selalu terakhir
-$unlock_file = plugin_dir_path(__FILE__) . 'service/tutor-enroll-unlock.php';
-if (file_exists($unlock_file)) {
-    require_once $unlock_file;
-}
-
-/**
- * 🔁 Patch: Auto Sync Enrolled Courses Cache (ganti template_redirect lama)
- */
-add_action('template_redirect', function () {
-    if (!is_page(['dashboard', 'enrolled-courses'])) return;
-
-    $user_id = get_current_user_id();
-    if (!$user_id) return;
-
-    global $wpdb;
-    $table = "{$wpdb->prefix}tutor_enrolled";
-
-    // Ambil semua course_id yang user sudah enroll
-    $enrolled_course_ids = $wpdb->get_col($wpdb->prepare("
-        SELECT course_id FROM $table WHERE user_id = %d
-    ", $user_id));
-
-    if (!$enrolled_course_ids) return;
-
-    // Update tutor_total_enroll
-    update_user_meta($user_id, 'tutor_total_enroll', count($enrolled_course_ids));
-
-    // Update tutor_enrolled_courses
-    update_user_meta($user_id, 'tutor_enrolled_courses', $enrolled_course_ids);
-
-    // Update tutor_enrolled_courses_cache
-    $cache_key = 'tutor_enrolled_courses_cache';
-    $cached = [];
-    foreach ($enrolled_course_ids as $course_id) {
-        $cached[$course_id] = [
-            'course_id' => $course_id,
-            'enrolled_date' => current_time('mysql')
-        ];
-    }
-    update_user_meta($user_id, $cache_key, $cached);
-
-    // Pastikan user role tutor_student
-    $user = get_userdata($user_id);
-    if ($user && !in_array('tutor_student', (array) $user->roles)) {
-        $user->set_role('tutor_student');
-    }
-
-    error_log("[TPT-FIX] ✅ Auto-sync Tutor enrolled cache untuk user $user_id");
-}, 20);
-
-
 // =====================
 // 1️⃣ Load JS admin (fix untuk Tutor React Builder)
 // =====================
@@ -161,64 +90,27 @@ add_action('wp_ajax_tpt_save_price', function () {
     update_post_meta($topic_post_id, '_tpt_price', $price);
 
     // buat / update produk WooCommerce
-    // $wc_id = get_post_meta($topic_post_id, '_tpt_wc_id', true);
-
-    // $course_title = get_the_title($course_id);
-    // $topic_title  = get_the_title($topic_post_id);
-    // $product_name = $course_title . ' – ' . $topic_title;
-
-    // if (!$wc_id) {
-    //     $product = new WC_Product_Simple();
-    //     $product->set_name($product_name);
-    //     $product->set_regular_price($price);
-    //     $product->set_status('publish'); // publish agar muncul
-    //     $product->set_catalog_visibility('hidden');
-    //     $product->save();
-
-    //     update_post_meta($topic_post_id, '_tpt_wc_id', $product->get_id());
-    //     update_post_meta($product->get_id(), '_tpt_topic_id', $topic_post_id);
-    //     update_post_meta($product->get_id(), '_tutor_course_id', $course_id); // 🔹 tambahkan juga course ID
-
-    //     $wc_id = $product->get_id();
-    // } else {
-    //     $product = wc_get_product($wc_id);
-    //     if ($product) {
-    //         $product->set_name($product_name);
-    //         $product->set_regular_price($price);
-    //         $product->set_status('publish');
-    //         $product->save();
-    //     }
-    // }
-    // buat / update produk WooCommerce
     $wc_id = get_post_meta($topic_post_id, '_tpt_wc_id', true);
-
-    $course_title = get_the_title($course_id);
-    $topic_title  = get_the_title($topic_post_id);
-    $product_name = $course_title . ' – ' . $topic_title;
-
     if (!$wc_id) {
+        $title = get_the_title($topic_post_id);
         $product = new WC_Product_Simple();
-        $product->set_name($product_name);
+        $product->set_name($title);
         $product->set_regular_price($price);
-        $product->set_status('publish'); // publish agar muncul
+        $product->set_status('publish'); // ✅ publish agar muncul di WooCommerce
         $product->set_catalog_visibility('hidden');
         $product->save();
 
         update_post_meta($topic_post_id, '_tpt_wc_id', $product->get_id());
         update_post_meta($product->get_id(), '_tpt_topic_id', $topic_post_id);
-        update_post_meta($product->get_id(), '_tutor_course_id', $course_id); // 🔹 tambahkan juga course ID
-
         $wc_id = $product->get_id();
     } else {
         $product = wc_get_product($wc_id);
         if ($product) {
-            $product->set_name($product_name);
             $product->set_regular_price($price);
-            $product->set_status('publish');
+            $product->set_status('publish'); // pastikan tetap publish
             $product->save();
         }
     }
-
 
     wp_send_json_success([
         'topic_id' => $topic_post_id,
@@ -265,132 +157,37 @@ add_filter('tutor_course_builder_save_data_before_validation', function ($data) 
     return $data;
 }, 10, 1);
 
-// =====================
-// Hook: Save price & WC product
-// =====================
-add_action('save_post', function ($post_id, $post, $update) {
-    if ($post->post_type !== 'tutor_lesson') return;
-
-    $course_id = get_post_meta($post_id, '_tutor_course_id', true);
-    if (!$course_id) return;
-
-    $price = isset($_POST['_tpt_price']) ? floatval($_POST['_tpt_price']) : 0;
-    update_post_meta($post_id, '_tpt_price', $price);
-
-    // Patch: buat / update WC product unik per course
-    tpt_create_or_update_wc_product($post_id, $price, $course_id);
-}, 10, 3);
 
 // =====================
-// Function: Create / update WooCommerce product per topic
+// 3️⃣ Hook: buat/update WC product setelah course disimpan
 // =====================
-// function tpt_create_or_update_wc_product($topic_id, $price, $course_id)
-// {
-//     if (!$topic_id || !$course_id) return false;
+add_action('tutor_course_after_save', function ($course_id, $request_data) {
+    $topics = tutor_utils()->get_course_topics($course_id);
 
-//     $topic_title  = get_the_title($topic_id);
-//     $course_title = get_the_title($course_id);
+    foreach ($topics as $topic_id) {
+        $price = get_post_meta($topic_id, '_tpt_price', true);
+        if (!$price) continue;
 
-//     $product_name = $course_title . ' – ' . $topic_title;
+        $wc_id = get_post_meta($topic_id, '_tpt_wc_id', true);
 
-//     $wc_id = get_post_meta($topic_id, '_tpt_wc_id', true);
+        if (!$wc_id) {
+            $title = get_the_title($topic_id);
+            if (!$title) continue;
 
-//     if (!$wc_id) {
-//         $product = new WC_Product_Simple();
-//         $product->set_name($product_name);
-//         $product->set_regular_price($price);
-//         $product->set_status('publish');
-//         $product->set_catalog_visibility('hidden');
-//         $product->save();
-
-//         update_post_meta($topic_id, '_tpt_wc_id', $product->get_id());
-//         update_post_meta($product->get_id(), '_tpt_topic_id', $topic_id);
-
-//         $wc_id = $product->get_id();
-//     } else {
-//         $product = wc_get_product($wc_id);
-//         if ($product) {
-//             $product->set_name($product_name);
-//             $product->set_regular_price($price);
-//             $product->set_status('publish');
-//             $product->save();
-//         }
-//     }
-
-//     return $wc_id;
-// }
-// Versi patch :
-function tpt_create_or_update_wc_product($topic_id, $price, $course_id)
-{
-    if (!$topic_id || !$course_id) return false;
-
-    $topic_title  = get_the_title($topic_id);
-    $course_title = get_the_title($course_id);
-
-    $product_name = $course_title . ' – ' . $topic_title;
-
-    $wc_id = get_post_meta($topic_id, '_tpt_wc_id', true);
-
-    if (!$wc_id) {
-        // 🔹 Buat produk baru
-        $product = new WC_Product_Simple();
-        $product->set_name($product_name);
-        $product->set_regular_price($price);
-        $product->set_status('publish');
-        $product->set_catalog_visibility('hidden');
-        $product->save();
-
-        // 🔹 Simpan relasi meta
-        update_post_meta($topic_id, '_tpt_wc_id', $product->get_id());
-        update_post_meta($product->get_id(), '_tpt_topic_id', $topic_id);
-        update_post_meta($product->get_id(), '_tutor_course_id', $course_id); // ✅ Tambahkan baris ini
-
-        $wc_id = $product->get_id();
-    } else {
-        // 🔹 Update produk lama
-        $product = wc_get_product($wc_id);
-        if ($product) {
-            $product->set_name($product_name);
+            $product = new WC_Product_Simple();
+            $product->set_name($title);
             $product->set_regular_price($price);
-            $product->set_status('publish');
+            $product->set_catalog_visibility('hidden');
             $product->save();
 
-            // ✅ Pastikan meta selalu sinkron
-            update_post_meta($product->get_id(), '_tutor_course_id', $course_id);
+            update_post_meta($topic_id, '_tpt_wc_id', $product->get_id());
             update_post_meta($product->get_id(), '_tpt_topic_id', $topic_id);
+        } else {
+            $product = wc_get_product($wc_id);
+            if ($product) $product->set_regular_price($price)->save();
         }
     }
-
-    return $wc_id;
-}
-
-
-// =====================
-// REST API endpoint: Buy topic
-// =====================
-add_action('rest_api_init', function () {
-    register_rest_route('tutor-paid-topic/v2', '/buy', [
-        'methods' => 'POST',
-        'callback' => function ($request) {
-            $topic_id  = $request->get_param('topic_id');
-            $course_id = $request->get_param('course_id');
-            $user_id   = get_current_user_id();
-
-            if (!$topic_id || !$course_id || !$user_id) {
-                return ['status' => 'error', 'message' => 'Missing parameter'];
-            }
-
-            $wc_id = get_post_meta($topic_id, '_tpt_wc_id', true);
-            if (!$wc_id) return ['status' => 'error', 'message' => 'WC Product not found'];
-
-            // Tambahkan ke cart
-            WC()->cart->add_to_cart($wc_id);
-
-            return ['status' => 'success', 'message' => 'Topic added to cart'];
-        },
-        'permission_callback' => '__return_true', // <=== ini tambahan
-    ]);
-});
+}, 10, 2);
 
 // =====================
 // 4️⃣ AJAX get price
@@ -482,14 +279,15 @@ add_action('rest_api_init', function () {
 
             global $wpdb;
 
-            // Ambil semua topic dengan post_type = 'topics' (fix untuk DB kamu)
             $topics = $wpdb->get_results($wpdb->prepare("
-                SELECT ID, post_title
-                FROM {$wpdb->posts}
-                WHERE post_parent = %d
-                AND post_type = 'topics'
-                AND post_status = 'publish'
-                ORDER BY menu_order ASC
+                SELECT p.ID, p.post_title
+                FROM {$wpdb->posts} p
+                WHERE p.post_parent IN (
+                    SELECT ID FROM {$wpdb->posts} WHERE post_parent = %d
+                )
+                AND p.post_type IN ('lesson','topic')
+                AND p.post_status = 'publish'
+                ORDER BY p.menu_order ASC
             ", $course_id));
 
             if (!$topics) return new WP_REST_Response([
@@ -501,17 +299,13 @@ add_action('rest_api_init', function () {
             $prices = [];
             foreach ($topics as $topic) {
                 $price = intval(get_post_meta($topic->ID, '_tpt_price', true) ?: 0);
-                $data[] = [
-                    'id'    => intval($topic->ID),
-                    'title' => $topic->post_title,
-                    'price' => $price
-                ];
+                $data[] = ['id' => intval($topic->ID), 'title' => $topic->post_title, 'price' => $price];
                 if ($price > 0) $prices[] = $price;
             }
 
             return new WP_REST_Response([
                 'status_code' => 200,
-                'message'     => 'Course topics fetched successfully',
+                'message'     => 'Course contents fetched successfully',
                 'data'        => [
                     'course_id' => $course_id,
                     'topics'    => $data,
@@ -521,30 +315,6 @@ add_action('rest_api_init', function () {
             ], 200);
         },
         'permission_callback' => '__return_true'
-    ]);
-
-    // Route tpt-card/v2/get-course-prices
-    register_rest_route('tpt-card/v2', '/get-course-prices', [
-        'methods' => 'GET',
-        'callback' => function ($request) {
-            $course_id = $request->get_param('course_id');
-            if (!$course_id) return [];
-
-            $topics = tutor_utils()->get_course_topics($course_id);
-            $data = [];
-
-            foreach ($topics as $topic) {
-                $price = get_post_meta($topic->ID, '_tpt_price', true);
-                $data[] = [
-                    'topic_id' => $topic->ID,
-                    'title' => get_the_title($topic->ID),
-                    'price' => $price ? $price : 0
-                ];
-            }
-
-            return $data;
-        },
-        'permission_callback' => '__return_true', // <=== ini tambahan
     ]);
 });
 
@@ -605,54 +375,4 @@ add_action('wp_footer', function () {
         });
     </script>
 <?php
-});
-
-
-/**
- * 🛠 PATCH: Auto Sync Tutor LMS enrolled courses cache
- * Bisa dipanggil via URL / cron / template_redirect
- */
-add_action('init', function () {
-    // Hanya jalankan untuk admin (saat testing)
-    if (!current_user_can('administrator')) return;
-
-    global $wpdb;
-    $table_enroll = $wpdb->prefix . 'tutor_enrolled';
-
-    // Ambil semua user yang punya enroll
-    $user_ids = $wpdb->get_col("SELECT DISTINCT user_id FROM $table_enroll");
-    if (!$user_ids) return;
-
-    foreach ($user_ids as $user_id) {
-        $enrolled_course_ids = $wpdb->get_col($wpdb->prepare("
-            SELECT course_id FROM $table_enroll WHERE user_id = %d
-        ", $user_id));
-
-        if (!$enrolled_course_ids) $enrolled_course_ids = [];
-
-        // Update tutor_total_enroll
-        update_user_meta($user_id, 'tutor_total_enroll', count($enrolled_course_ids));
-
-        // Update tutor_enrolled_courses
-        update_user_meta($user_id, 'tutor_enrolled_courses', $enrolled_course_ids);
-
-        // Update tutor_enrolled_courses_cache
-        $cache_key = 'tutor_enrolled_courses_cache';
-        $cached = [];
-        foreach ($enrolled_course_ids as $course_id) {
-            $cached[$course_id] = [
-                'course_id' => $course_id,
-                'enrolled_date' => current_time('mysql')
-            ];
-        }
-        update_user_meta($user_id, $cache_key, $cached);
-
-        // Pastikan role tutor_student
-        $user = get_userdata($user_id);
-        if ($user && !in_array('tutor_student', (array) $user->roles)) {
-            $user->set_role('tutor_student');
-        }
-
-        error_log("[TPT-PATCH] ✅ Sync enroll cache untuk user $user_id selesai, courses: " . implode(',', $enrolled_course_ids));
-    }
 });

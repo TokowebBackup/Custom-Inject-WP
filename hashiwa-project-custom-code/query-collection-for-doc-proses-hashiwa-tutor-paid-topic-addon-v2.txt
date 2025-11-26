@@ -1,0 +1,31 @@
+SELECT meta_value FROM wpsu_postmeta WHERE post_id = 17012 AND meta_key = '_tutor_enrolled_user_ids';
+
+
+SELECT * FROM wp_usermeta WHERE user_id = 19 AND meta_key IN ('tutor_enrolled_courses', 'tutor_enrolled_courses_cache');
+
+SELECT * FROM wpsu_tutor_enrolled WHERE user_id = 19;
+
+
+-- Hapus dari tabel tutor_enrolled
+DELETE FROM wpsu_tutor_enrolled WHERE user_id = 19;
+
+-- Hapus cache & meta
+DELETE FROM wpsu_usermeta WHERE user_id = 19 AND meta_key IN (
+'tutor_total_enroll',
+'tutor_enrolled_courses',
+'tutor_enrolled_courses_cache'
+);
+
+-- Hapus post order
+DELETE FROM wpsu_posts
+WHERE post_type = 'shop_order'
+AND ID IN (
+SELECT post_id FROM wpsu_postmeta WHERE meta_key='_customer_user' AND meta_value=19
+);
+
+-- Hapus meta order
+DELETE FROM wpsu_postmeta WHERE post_id NOT IN (SELECT ID FROM wpsu_posts);
+
+DELETE FROM wpsu_usermeta WHERE user_id = 19 AND meta_key LIKE '_tpt_%';
+
+DELETE FROM wpsu_tutor_enrolled WHERE user_id = 19;
