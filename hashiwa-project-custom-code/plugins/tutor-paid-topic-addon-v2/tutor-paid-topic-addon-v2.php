@@ -36,48 +36,62 @@ if (file_exists($unlock_file)) {
 /**
  * 🔁 Patch: Auto Sync Enrolled Courses Cache (ganti template_redirect lama)
  */
-add_action('template_redirect', function () {
-    if (!is_page(['dashboard', 'enrolled-courses'])) return;
+// add_action('template_redirect', function () {
+//     if (!is_page(['dashboard', 'enrolled-courses'])) return;
 
-    $user_id = get_current_user_id();
-    if (!$user_id) return;
+//     $user_id = get_current_user_id();
+//     if (!$user_id) return;
 
-    global $wpdb;
-    $table = "{$wpdb->prefix}tutor_enrolled";
+//     global $wpdb;
+//     $table = "{$wpdb->prefix}tutor_enrolled";
 
-    // Ambil semua course_id yang user sudah enroll
-    $enrolled_course_ids = $wpdb->get_col($wpdb->prepare("
-        SELECT course_id FROM $table WHERE user_id = %d
-    ", $user_id));
+//     // Ambil semua course_id yang user sudah enroll
+//     $enrolled_course_ids = $wpdb->get_col($wpdb->prepare("
+//         SELECT course_id FROM $table WHERE user_id = %d
+//     ", $user_id));
 
-    if (!$enrolled_course_ids) return;
+//     if (!$enrolled_course_ids) return;
 
-    // Update tutor_total_enroll
-    update_user_meta($user_id, 'tutor_total_enroll', count($enrolled_course_ids));
+//     // Update tutor_total_enroll
+//     update_user_meta($user_id, 'tutor_total_enroll', count($enrolled_course_ids));
 
-    // Update tutor_enrolled_courses
-    update_user_meta($user_id, 'tutor_enrolled_courses', $enrolled_course_ids);
+//     // Update tutor_enrolled_courses
+//     update_user_meta($user_id, 'tutor_enrolled_courses', $enrolled_course_ids);
 
-    // Update tutor_enrolled_courses_cache
-    $cache_key = 'tutor_enrolled_courses_cache';
-    $cached = [];
-    foreach ($enrolled_course_ids as $course_id) {
-        $cached[$course_id] = [
-            'course_id' => $course_id,
-            'enrolled_date' => current_time('mysql')
-        ];
+//     // Update tutor_enrolled_courses_cache
+//     $cache_key = 'tutor_enrolled_courses_cache';
+//     $cached = [];
+//     foreach ($enrolled_course_ids as $course_id) {
+//         $cached[$course_id] = [
+//             'course_id' => $course_id,
+//             'enrolled_date' => current_time('mysql')
+//         ];
+//     }
+//     update_user_meta($user_id, $cache_key, $cached);
+
+//     // Pastikan user role tutor_student
+//     $user = get_userdata($user_id);
+//     if ($user && !in_array('tutor_student', (array) $user->roles)) {
+//         $user->set_role('tutor_student');
+//     }
+
+//     error_log("[TPT-FIX] ✅ Auto-sync Tutor enrolled cache untuk user $user_id");
+// }, 20);
+
+/**
+ * 🎨 Load Cinematic Style for Tutor LMS Lessons
+ */
+add_action('wp_enqueue_scripts', function () {
+    // hanya load di halaman lesson Tutor
+    if (is_singular('lesson')) {
+        wp_enqueue_style(
+            'tpt-cinematic-style',
+            plugin_dir_url(__FILE__) . 'assets/style.css',
+            [],
+            filemtime(plugin_dir_path(__FILE__) . 'assets/style.css') // versi dinamis anti-cache
+        );
     }
-    update_user_meta($user_id, $cache_key, $cached);
-
-    // Pastikan user role tutor_student
-    $user = get_userdata($user_id);
-    if ($user && !in_array('tutor_student', (array) $user->roles)) {
-        $user->set_role('tutor_student');
-    }
-
-    error_log("[TPT-FIX] ✅ Auto-sync Tutor enrolled cache untuk user $user_id");
-}, 20);
-
+});
 
 // =====================
 // 1️⃣ Load JS admin (fix untuk Tutor React Builder)
@@ -107,6 +121,31 @@ add_action('admin_enqueue_scripts', function ($hook) {
         ]);
     }
 });
+
+/**
+ * 🎬 Load Cinematic Style + YouTube Player Fix
+ */
+add_action('wp_enqueue_scripts', function () {
+    if (is_singular('lesson')) {
+        // CSS cinematic
+        wp_enqueue_style(
+            'tpt-cinematic-style',
+            plugin_dir_url(__FILE__) . 'assets/style.css',
+            [],
+            filemtime(plugin_dir_path(__FILE__) . 'assets/style.css')
+        );
+
+        // JS player auto-convert
+        wp_enqueue_script(
+            'tpt-player-fix',
+            plugin_dir_url(__FILE__) . 'assets/player.js',
+            [],
+            filemtime(plugin_dir_path(__FILE__) . 'assets/player.js'),
+            true
+        );
+    }
+});
+
 
 /**
  * 2️⃣ AJAX - Simpan harga per topic & buat produk WooCommerce
@@ -392,6 +431,21 @@ add_action('rest_api_init', function () {
     ]);
 });
 
+add_action('rest_api_init', function () {
+    register_rest_route('tpt/v1', '/user-progress', [
+        'methods' => 'GET',
+        'callback' => function (WP_REST_Request $r) {
+            $user_id = intval($r->get_param('user_id')) ?: get_current_user_id();
+            return [
+                'completed' => get_user_meta($user_id, '_tpt_completed_topics', true),
+                'purchased' => get_user_meta($user_id, '_tpt_purchased_topics', true),
+            ];
+        },
+        'permission_callback' => '__return_true'
+    ]);
+});
+
+
 // =====================
 // 4️⃣ AJAX get price
 // =====================
@@ -613,31 +667,20 @@ add_action('wp_footer', function () {
  * Bisa dipanggil via URL / cron / template_redirect
  */
 add_action('init', function () {
-    // Hanya jalankan untuk admin (saat testing)
-    if (!current_user_can('administrator')) return;
-
     global $wpdb;
     $table_enroll = $wpdb->prefix . 'tutor_enrolled';
 
-    // Ambil semua user yang punya enroll
     $user_ids = $wpdb->get_col("SELECT DISTINCT user_id FROM $table_enroll");
     if (!$user_ids) return;
 
     foreach ($user_ids as $user_id) {
         $enrolled_course_ids = $wpdb->get_col($wpdb->prepare("
             SELECT course_id FROM $table_enroll WHERE user_id = %d
-        ", $user_id));
+        ", $user_id)) ?: [];
 
-        if (!$enrolled_course_ids) $enrolled_course_ids = [];
-
-        // Update tutor_total_enroll
         update_user_meta($user_id, 'tutor_total_enroll', count($enrolled_course_ids));
-
-        // Update tutor_enrolled_courses
         update_user_meta($user_id, 'tutor_enrolled_courses', $enrolled_course_ids);
 
-        // Update tutor_enrolled_courses_cache
-        $cache_key = 'tutor_enrolled_courses_cache';
         $cached = [];
         foreach ($enrolled_course_ids as $course_id) {
             $cached[$course_id] = [
@@ -645,14 +688,99 @@ add_action('init', function () {
                 'enrolled_date' => current_time('mysql')
             ];
         }
-        update_user_meta($user_id, $cache_key, $cached);
+        update_user_meta($user_id, 'tutor_enrolled_courses_cache', $cached);
 
-        // Pastikan role tutor_student
         $user = get_userdata($user_id);
-        if ($user && !in_array('tutor_student', (array) $user->roles)) {
+        if ($user && !in_array('tutor_student', (array)$user->roles)) {
             $user->set_role('tutor_student');
         }
 
         error_log("[TPT-PATCH] ✅ Sync enroll cache untuk user $user_id selesai, courses: " . implode(',', $enrolled_course_ids));
     }
 });
+
+/**
+ * 🧩 PATCH: Sinkronisasi otomatis ketika status order berubah
+ * - Tambah topic ke _tpt_purchased_topics saat completed
+ * - Hapus topic dari _tpt_purchased_topics kalau order dibatalkan / on-hold
+ */
+add_action('woocommerce_order_status_changed', function ($order_id, $old_status, $new_status) {
+    $order = wc_get_order($order_id);
+    if (!$order) return;
+    $user_id = $order->get_user_id();
+    if (!$user_id) return;
+
+    global $wpdb;
+
+    foreach ($order->get_items() as $item) {
+        $product_id = $item->get_product_id();
+        if (!$product_id) continue;
+
+        $topic_id = $wpdb->get_var($wpdb->prepare("
+            SELECT post_id FROM {$wpdb->postmeta}
+            WHERE meta_key = '_tpt_wc_id' AND meta_value = %d
+        ", $product_id));
+
+        if (!$topic_id) continue;
+
+        // Ambil meta lama
+        $purchased = get_user_meta($user_id, '_tpt_purchased_topics', true);
+        if (!is_array($purchased)) $purchased = [];
+
+        if ($new_status === 'completed') {
+            // ✅ Tambah topic ke daftar purchased
+            if (!in_array($topic_id, $purchased)) {
+                $purchased[] = $topic_id;
+                update_user_meta($user_id, '_tpt_purchased_topics', array_unique($purchased));
+                error_log("[TPT] ✅ Topic $topic_id DITAMBAHKAN ke _tpt_purchased_topics (order completed)");
+            }
+        } elseif (in_array($new_status, ['on-hold', 'pending', 'cancelled', 'refunded'])) {
+            // ❌ Hapus topic dari daftar purchased
+            $new_purchased = array_diff($purchased, [$topic_id]);
+            update_user_meta($user_id, '_tpt_purchased_topics', $new_purchased);
+            error_log("[TPT] ❌ Topic $topic_id DIHAPUS dari _tpt_purchased_topics (order $new_status)");
+        }
+    }
+}, 10, 3);
+
+/**
+ * 🔁 Force refresh _tpt_purchased_topics setiap kali user buka halaman course
+ * agar status On Hold -> Completed langsung ter-update tanpa logout.
+ */
+add_action('template_redirect', function () {
+    if (!is_singular(['courses', 'tutor_course', 'lesson'])) return;
+
+    $user_id = get_current_user_id();
+    if (!$user_id) return;
+
+    // Ambil semua order WooCommerce user
+    $orders = wc_get_orders([
+        'customer_id' => $user_id,
+        'status'      => ['completed'],
+        'limit'       => -1,
+    ]);
+
+    if (!$orders) return;
+
+    global $wpdb;
+    $topics = [];
+
+    foreach ($orders as $order) {
+        foreach ($order->get_items() as $item) {
+            $pid = $item->get_product_id();
+            $tid = $wpdb->get_var($wpdb->prepare("
+                SELECT post_id FROM {$wpdb->postmeta}
+                WHERE meta_key = '_tpt_wc_id' AND meta_value = %d
+            ", $pid));
+            if ($tid) $topics[] = intval($tid);
+        }
+    }
+
+    if (!empty($topics)) {
+        $existing = get_user_meta($user_id, '_tpt_purchased_topics', true);
+        if (!is_array($existing)) $existing = [];
+
+        $merged = array_unique(array_merge($existing, $topics));
+        update_user_meta($user_id, '_tpt_purchased_topics', $merged);
+    }
+}, 30);

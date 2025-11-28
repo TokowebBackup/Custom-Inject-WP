@@ -85,46 +85,30 @@ add_action('rest_api_init', function () {
     ]);
 });
 
-// add_action('template_redirect', function () {
-//     if (! (is_page('dashboard') || is_page('enrolled-courses'))) {
-//         return;
-//     }
+add_action('rest_api_init', function () {
+    register_rest_route('tpt/v1', '/reset-lesson', [
+        'methods' => 'POST',
+        'callback' => function (WP_REST_Request $r) {
+            $user_id = intval($r->get_param('user_id'));
+            $lesson_id = intval($r->get_param('lesson_id'));
+            if (!$user_id || !$lesson_id) {
+                return ['status' => 'error', 'message' => 'Missing user_id or lesson_id'];
+            }
 
-//     $user_id = get_current_user_id();
-//     if (! $user_id) {
-//         return;
-//     }
+            global $wpdb;
+            $wpdb->delete("{$wpdb->usermeta}", [
+                'user_id' => $user_id,
+                'meta_key' => "_tutor_completed_lesson_id_{$lesson_id}"
+            ]);
 
-//     if (function_exists('tutor_utils')) {
-//         // 1. Refresh cache via Tutor utils (if ada)
-//         tutor_utils()->refresh_course_enrolled_cache($user_id);
-//         error_log("[TPT-REFRESH] 🔄 Auto-refresh enroll cache untuk user {$user_id}");
-//     }
+            // bersihkan cache progress juga
+            $wpdb->query($wpdb->prepare("
+                DELETE FROM {$wpdb->usermeta}
+                WHERE user_id = %d AND meta_key LIKE 'tutor_%%progress%%'
+            ", $user_id));
 
-//     global $wpdb;
-//     // 2. Ambil semua enrolled course dari DB
-//     $courses = $wpdb->get_results($wpdb->prepare("
-//         SELECT course_id, enrolled_date
-//         FROM {$wpdb->prefix}tutor_enrolled
-//         WHERE user_id = %d
-//     ", $user_id));
-
-//     if (!$courses) {
-//         return;
-//     }
-
-//     // 3. Rebuild user_meta cache
-//     $cache_data = [];
-//     foreach ($courses as $row) {
-//         $cache_data[intval($row->course_id)] = [
-//             'course_id'     => intval($row->course_id),
-//             'enrolled_date' => $row->enrolled_date ?: current_time('mysql'),
-//         ];
-//     }
-
-//     update_user_meta($user_id, 'tutor_enrolled_courses_cache', $cache_data);
-//     update_user_meta($user_id, 'tutor_enrolled_courses', array_keys($cache_data));
-//     update_user_meta($user_id, 'tutor_total_enroll', count($cache_data));
-
-//     error_log("[TPT-CACHE] 🔁 Cache enrolled rebuilt for user {$user_id}: " . json_encode(array_keys($cache_data)));
-// });
+            return ['status' => 'success', 'message' => "Lesson $lesson_id reset untuk user $user_id"];
+        },
+        'permission_callback' => '__return_true'
+    ]);
+});
