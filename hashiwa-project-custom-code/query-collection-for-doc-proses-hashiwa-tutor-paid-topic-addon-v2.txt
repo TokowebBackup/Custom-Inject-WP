@@ -176,3 +176,32 @@ DELETE FROM wpsu_usermeta
 WHERE user_id = 20
   AND meta_key LIKE 'tutor_%progress%';
 
+
+
+select course order / enrolled course by user :
+SELECT post_id, meta_value 
+FROM wpsu_postmeta 
+WHERE meta_key = '_tpt_price' 
+AND post_id IN (
+    SELECT ID FROM wpsu_posts WHERE post_parent = 17012 AND post_type IN ('topics','topic')
+);
+
+SELECT * FROM wpsu_tutor_enrolled WHERE user_id = 20;
+
+-- Hapus order Tutor LMS yang terkait dengan user 20
+DELETE FROM wpsu_tutor_orders WHERE user_id = 20;
+
+-- Hapus item order Tutor LMS yang terkait dengan order di atas
+DELETE FROM wpsu_tutor_order_items 
+WHERE order_id NOT IN (SELECT id FROM wpsu_tutor_orders);
+
+-- Hapus metadata order Tutor LMS
+DELETE FROM wpsu_tutor_ordermeta 
+WHERE order_id NOT IN (SELECT id FROM wpsu_tutor_orders);
+
+⚙️ Setelah itu
+
+Jalankan juga flush cache ini dari SQL:
+
+DELETE FROM wpsu_options WHERE option_name LIKE '%tutor_dashboard_facts%';
+DELETE FROM wpsu_options WHERE option_name LIKE '%tutor_student_stats%';

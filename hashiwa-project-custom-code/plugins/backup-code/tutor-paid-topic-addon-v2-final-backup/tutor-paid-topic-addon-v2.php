@@ -13,6 +13,10 @@ if (file_exists(plugin_dir_path(__FILE__) . 'module/frontend.php')) {
     require_once plugin_dir_path(__FILE__) . 'module/frontend.php';
 }
 
+// Load role & registration service
+// foreach (glob(plugin_dir_path(__FILE__) . 'service/*.php') as $service_file) {
+//     require_once $service_file;
+// }
 // =========================================================
 // Load service files setelah semua plugin lain siap
 // =========================================================
@@ -29,6 +33,50 @@ if (file_exists($unlock_file)) {
     require_once $unlock_file;
 }
 
+/**
+ * 🔁 Patch: Auto Sync Enrolled Courses Cache (ganti template_redirect lama)
+ */
+// add_action('template_redirect', function () {
+//     if (!is_page(['dashboard', 'enrolled-courses'])) return;
+
+//     $user_id = get_current_user_id();
+//     if (!$user_id) return;
+
+//     global $wpdb;
+//     $table = "{$wpdb->prefix}tutor_enrolled";
+
+//     // Ambil semua course_id yang user sudah enroll
+//     $enrolled_course_ids = $wpdb->get_col($wpdb->prepare("
+//         SELECT course_id FROM $table WHERE user_id = %d
+//     ", $user_id));
+
+//     if (!$enrolled_course_ids) return;
+
+//     // Update tutor_total_enroll
+//     update_user_meta($user_id, 'tutor_total_enroll', count($enrolled_course_ids));
+
+//     // Update tutor_enrolled_courses
+//     update_user_meta($user_id, 'tutor_enrolled_courses', $enrolled_course_ids);
+
+//     // Update tutor_enrolled_courses_cache
+//     $cache_key = 'tutor_enrolled_courses_cache';
+//     $cached = [];
+//     foreach ($enrolled_course_ids as $course_id) {
+//         $cached[$course_id] = [
+//             'course_id' => $course_id,
+//             'enrolled_date' => current_time('mysql')
+//         ];
+//     }
+//     update_user_meta($user_id, $cache_key, $cached);
+
+//     // Pastikan user role tutor_student
+//     $user = get_userdata($user_id);
+//     if ($user && !in_array('tutor_student', (array) $user->roles)) {
+//         $user->set_role('tutor_student');
+//     }
+
+//     error_log("[TPT-FIX] ✅ Auto-sync Tutor enrolled cache untuk user $user_id");
+// }, 20);
 
 /**
  * 🎨 Load Cinematic Style for Tutor LMS Lessons
@@ -151,6 +199,35 @@ add_action('wp_ajax_tpt_save_price', function () {
     update_post_meta($topic_post_id, '_tpt_price', $price);
 
     // buat / update produk WooCommerce
+    // $wc_id = get_post_meta($topic_post_id, '_tpt_wc_id', true);
+
+    // $course_title = get_the_title($course_id);
+    // $topic_title  = get_the_title($topic_post_id);
+    // $product_name = $course_title . ' – ' . $topic_title;
+
+    // if (!$wc_id) {
+    //     $product = new WC_Product_Simple();
+    //     $product->set_name($product_name);
+    //     $product->set_regular_price($price);
+    //     $product->set_status('publish'); // publish agar muncul
+    //     $product->set_catalog_visibility('hidden');
+    //     $product->save();
+
+    //     update_post_meta($topic_post_id, '_tpt_wc_id', $product->get_id());
+    //     update_post_meta($product->get_id(), '_tpt_topic_id', $topic_post_id);
+    //     update_post_meta($product->get_id(), '_tutor_course_id', $course_id); // 🔹 tambahkan juga course ID
+
+    //     $wc_id = $product->get_id();
+    // } else {
+    //     $product = wc_get_product($wc_id);
+    //     if ($product) {
+    //         $product->set_name($product_name);
+    //         $product->set_regular_price($price);
+    //         $product->set_status('publish');
+    //         $product->save();
+    //     }
+    // }
+    // buat / update produk WooCommerce
     $wc_id = get_post_meta($topic_post_id, '_tpt_wc_id', true);
 
     $course_title = get_the_title($course_id);
@@ -242,6 +319,44 @@ add_action('save_post', function ($post_id, $post, $update) {
     tpt_create_or_update_wc_product($post_id, $price, $course_id);
 }, 10, 3);
 
+// =====================
+// Function: Create / update WooCommerce product per topic
+// =====================
+// function tpt_create_or_update_wc_product($topic_id, $price, $course_id)
+// {
+//     if (!$topic_id || !$course_id) return false;
+
+//     $topic_title  = get_the_title($topic_id);
+//     $course_title = get_the_title($course_id);
+
+//     $product_name = $course_title . ' – ' . $topic_title;
+
+//     $wc_id = get_post_meta($topic_id, '_tpt_wc_id', true);
+
+//     if (!$wc_id) {
+//         $product = new WC_Product_Simple();
+//         $product->set_name($product_name);
+//         $product->set_regular_price($price);
+//         $product->set_status('publish');
+//         $product->set_catalog_visibility('hidden');
+//         $product->save();
+
+//         update_post_meta($topic_id, '_tpt_wc_id', $product->get_id());
+//         update_post_meta($product->get_id(), '_tpt_topic_id', $topic_id);
+
+//         $wc_id = $product->get_id();
+//     } else {
+//         $product = wc_get_product($wc_id);
+//         if ($product) {
+//             $product->set_name($product_name);
+//             $product->set_regular_price($price);
+//             $product->set_status('publish');
+//             $product->save();
+//         }
+//     }
+
+//     return $wc_id;
+// }
 // Versi patch :
 function tpt_create_or_update_wc_product($topic_id, $price, $course_id)
 {
@@ -287,6 +402,69 @@ function tpt_create_or_update_wc_product($topic_id, $price, $course_id)
     return $wc_id;
 }
 
+
+/**
+ * 🔹 BARU: REST API Endpoint untuk Aktivasi Akun
+ */
+add_action('rest_api_init', function () {
+    register_rest_route('tpt/v1', '/activate', [
+        'methods' => 'GET',
+        'callback' => function (WP_REST_Request $request) {
+            $key = sanitize_text_field($request->get_param('key'));
+            $user_id = intval($request->get_param('user'));
+
+            if (!$key || !$user_id) {
+                return new WP_REST_Response(['error' => 'Invalid activation link'], 400);
+            }
+
+            $stored_key = get_user_meta($user_id, '_tpt_activation_key', true);
+            $is_activated = get_user_meta($user_id, '_tpt_activated', true);
+
+            if ($is_activated || $stored_key !== $key) {
+                return new WP_REST_Response(['error' => 'Activation link invalid or already used'], 400);
+            }
+
+            // Aktifkan akun
+            update_user_meta($user_id, '_tpt_activated', true);
+            delete_user_meta($user_id, '_tpt_activation_key'); // Hapus key setelah digunakan
+
+            // Redirect ke login atau dashboard
+            $redirect_url = site_url('/wp-login.php?activated=1'); // Atau ganti ke dashboard jika mau
+            wp_redirect($redirect_url);
+            exit;
+        },
+        'permission_callback' => '__return_true'
+    ]);
+});
+
+/**
+ * 🔹 BARU: Cegah Login Jika Akun Belum Diaktifkan
+ */
+add_filter('authenticate', function ($user, $username, $password) {
+    if (is_wp_error($user)) return $user; // Jika sudah error, lewati
+
+    if (!$username) return $user; // Jika bukan login form, lewati
+
+    $user_obj = get_user_by('login', $username);
+    if (!$user_obj) return $user; // User tidak ditemukan
+
+    $is_activated = get_user_meta($user_obj->ID, '_tpt_activated', true);
+    if ($is_activated === false) {
+        return new WP_Error('activation_required', 'Akun Anda belum diaktifkan. Periksa email untuk link aktivasi.');
+    }
+
+    return $user;
+}, 30, 3);
+
+/**
+ * 🔹 BARU: Pesan Sukses di Login Page Setelah Aktivasi
+ */
+add_action('login_form', function () {
+    if (isset($_GET['activated']) && $_GET['activated'] == 1) {
+        echo '<div class="notice notice-success"><p>Akun Anda telah diaktifkan! Silakan login.</p></div>';
+    }
+});
+
 // =====================
 // REST API endpoint: Buy topic
 // =====================
@@ -313,6 +491,21 @@ add_action('rest_api_init', function () {
         'permission_callback' => '__return_true', // <=== ini tambahan
     ]);
 });
+
+// add_action('rest_api_init', function () {
+//     register_rest_route('tpt/v1', '/user-progress', [
+//         'methods' => 'GET',
+//         'callback' => function (WP_REST_Request $r) {
+//             $user_id = intval($r->get_param('user_id')) ?: get_current_user_id();
+//             return [
+//                 'completed' => get_user_meta($user_id, '_tpt_completed_topics', true),
+//                 'purchased' => get_user_meta($user_id, '_tpt_purchased_topics', true),
+//             ];
+//         },
+//         'permission_callback' => '__return_true'
+//     ]);
+// });
+
 
 // =====================
 // 4️⃣ AJAX get price
@@ -528,6 +721,44 @@ add_action('wp_footer', function () {
     </script>
     <?php
 });
+
+
+/**
+ * 🛠 PATCH: Auto Sync Tutor LMS enrolled courses cache
+ * Bisa dipanggil via URL / cron / template_redirect
+ */
+// add_action('init', function () {
+//     global $wpdb;
+//     $table_enroll = $wpdb->prefix . 'tutor_enrolled';
+
+//     $user_ids = $wpdb->get_col("SELECT DISTINCT user_id FROM $table_enroll");
+//     if (!$user_ids) return;
+
+//     foreach ($user_ids as $user_id) {
+//         $enrolled_course_ids = $wpdb->get_col($wpdb->prepare("
+//             SELECT course_id FROM $table_enroll WHERE user_id = %d
+//         ", $user_id)) ?: [];
+
+//         update_user_meta($user_id, 'tutor_total_enroll', count($enrolled_course_ids));
+//         update_user_meta($user_id, 'tutor_enrolled_courses', $enrolled_course_ids);
+
+//         $cached = [];
+//         foreach ($enrolled_course_ids as $course_id) {
+//             $cached[$course_id] = [
+//                 'course_id' => $course_id,
+//                 'enrolled_date' => current_time('mysql')
+//             ];
+//         }
+//         update_user_meta($user_id, 'tutor_enrolled_courses_cache', $cached);
+
+//         $user = get_userdata($user_id);
+//         if ($user && !in_array('tutor_student', (array)$user->roles)) {
+//             $user->set_role('tutor_student');
+//         }
+
+//         error_log("[TPT-PATCH] ✅ Sync enroll cache untuk user $user_id selesai, courses: " . implode(',', $enrolled_course_ids));
+//     }
+// });
 
 /**
  * 🧩 PATCH: Sinkronisasi otomatis ketika status order berubah
@@ -902,3 +1133,38 @@ add_filter('tutor_dashboard/stats', function ($stats) {
 
     return $stats;
 }, 999);
+
+
+/**
+ * 🔁 Force refresh Tutor LMS enrolled courses cache setiap load page
+ */
+// add_action('template_redirect', function () {
+//     if (!is_user_logged_in()) return;
+
+//     $user_id = get_current_user_id();
+//     if (!$user_id) return;
+
+//     global $wpdb;
+//     $table_enroll = $wpdb->prefix . 'tutor_enrolled';
+
+//     $enrolled_course_ids = $wpdb->get_col($wpdb->prepare("
+//         SELECT course_id FROM $table_enroll WHERE user_id=%d
+//     ", $user_id)) ?: [];
+
+//     // Update Tutor LMS meta
+//     update_user_meta($user_id, 'tutor_total_enroll', count($enrolled_course_ids));
+//     update_user_meta($user_id, 'tutor_enrolled_courses', $enrolled_course_ids);
+
+//     // Update cache
+//     $cached = [];
+//     foreach ($enrolled_course_ids as $course_id) {
+//         $cached[$course_id] = [
+//             'course_id' => $course_id,
+//             'enrolled_date' => current_time('mysql')
+//         ];
+//     }
+//     update_user_meta($user_id, 'tutor_enrolled_courses_cache', $cached);
+
+//     // Debug log (opsional)
+//     error_log("[TPT-FORCE-SYNC] User $user_id enrolled courses refreshed: " . implode(',', $enrolled_course_ids));
+// });
