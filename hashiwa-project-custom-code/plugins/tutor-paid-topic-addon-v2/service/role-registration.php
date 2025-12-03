@@ -2,7 +2,7 @@
 
 /**
  * ============================================================
- *  🔐 Tutor Student Role & Registration Handler (Full Patch)
+ * 🔐 Tutor Student Role & Registration Handler (Full Patch)
  * ============================================================
  */
 
@@ -57,8 +57,7 @@ add_action('rest_api_init', function () {
             update_user_meta($user_id, '_tpt_activated', true);
             delete_user_meta($user_id, '_tpt_activation_key');
 
-            $redirect_url = site_url('/dashboard?activated=1');
-            wp_redirect($redirect_url);
+            wp_redirect(site_url('/dashboard?activated=1'));
             exit;
         },
         'permission_callback' => '__return_true'
@@ -67,16 +66,19 @@ add_action('rest_api_init', function () {
 
 /**
  * Saat user register via Tutor LMS
+ * Generate NIM otomatis
  */
 add_action('tutor_after_student_signup', function ($user_id) {
     $user = get_userdata($user_id);
     if (!$user) return;
 
+    // Set role tutor_student
     wp_update_user([
         'ID'   => $user_id,
         'role' => 'tutor_student',
     ]);
 
+    // Update meta Tutor LMS
     update_user_meta($user_id, 'tutor_profile_completed', 1);
     update_user_meta($user_id, 'tutor_last_activity', current_time('mysql'));
     update_user_meta($user_id, 'tutor_total_enroll', 0);
@@ -85,6 +87,19 @@ add_action('tutor_after_student_signup', function ($user_id) {
     update_user_meta($user_id, '_tpt_activated', false);
     $activation_key = wp_generate_password(32, false);
     update_user_meta($user_id, '_tpt_activation_key', $activation_key);
+
+    // Generate NIM otomatis
+    $last_user = get_users([
+        'role'   => 'tutor_student',
+        'orderby' => 'ID',
+        'order'  => 'DESC',
+        'number' => 1,
+    ]);
+    $last_nim = $last_user ? get_user_meta($last_user[0]->ID, 'nim', true) : '';
+    $next_number = $last_nim ? intval(substr($last_nim, -4)) + 1 : 1;
+    $nim = 'TS-' . date('Y') . '-' . str_pad($next_number, 4, '0', STR_PAD_LEFT);
+    update_user_meta($user_id, 'nim', $nim);
+    tpt_debug_log("NIM otomatis disimpan untuk user_id $user_id", $nim);
 
     // Kirim email aktivasi
     $activation_link = site_url('/wp-json/tpt/v1/activate?key=' . $activation_key . '&user=' . $user_id);
@@ -112,7 +127,6 @@ add_action('tutor_after_student_signup', function ($user_id) {
 
 /**
  * Cegah login jika akun belum aktivasi
- * Set query param untuk flash message
  */
 add_filter('authenticate', function ($user, $username, $password) {
     if (is_wp_error($user)) return $user;
@@ -123,8 +137,7 @@ add_filter('authenticate', function ($user, $username, $password) {
 
     $is_activated = get_user_meta($user_obj->ID, '_tpt_activated', true);
     if ($is_activated === false) {
-        // Set redirect query param agar flash message muncul
-        add_filter('login_redirect', function ($redirect_to, $requested_redirect_to, $user) {
+        add_filter('login_redirect', function () {
             return site_url('/dashboard?activation_required=1');
         }, 10, 3);
 
@@ -169,7 +182,6 @@ HTML;
     }
 
     if (isset($_GET['activation_required']) && $_GET['activation_required'] == 1) {
-        // SweetAlert
         echo <<<HTML
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
@@ -182,7 +194,6 @@ Swal.fire({
 </script>
 HTML;
 
-        // Flash HTML alert (Tutor LMS login form)
         echo <<<HTML
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -197,5 +208,36 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 HTML;
+    }
+});
+
+/**
+ * ============================================================
+ * 🔹 Tampilkan kolom NIM di list table Users
+ * ============================================================
+ */
+add_filter('manage_users_columns', function ($columns) {
+    $columns['nim'] = 'NIM';
+    return $columns;
+});
+
+add_action('manage_users_custom_column', function ($value, $column_name, $user_id) {
+    if ($column_name === 'nim') {
+        $nim = get_user_meta($user_id, 'nim', true);
+        return $nim ? esc_html($nim) : '-';
+    }
+    return $value;
+}, 10, 3);
+
+add_filter('manage_users_sortable_columns', function ($columns) {
+    $columns['nim'] = 'nim';
+    return $columns;
+});
+
+add_action('pre_get_users', function ($query) {
+    if (!is_admin()) return;
+    if (isset($_GET['orderby']) && $_GET['orderby'] === 'nim') {
+        $query->query_vars['meta_key'] = 'nim';
+        $query->query_vars['orderby'] = 'meta_value';
     }
 });

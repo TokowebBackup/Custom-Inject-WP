@@ -1,10 +1,21 @@
 <?php
 /*
 Plugin Name: Tutor Paid Topic Addon V2
-Description: Inject harga per topic langsung di Course Builder Tutor LMS 3.x+ (React SPA) dan otomatis buat WooCommerce Product
+Plugin URI: https://tokoweb.co/
+Description: Inject harga per topic langsung di Course Builder Tutor LMS 3.x+ (React SPA) dan otomatis membuat WooCommerce Product untuk setiap topic berbayar.
 Version: 2.3
 Author: Puji Ermanto
+Author URI: https://pujiermanto-blog.vercel.app/
+Text Domain: tutor-paid-topic-v2
+Domain Path: /languages
+License: GPL-2.0+
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
+Requires at least: 5.8
+Requires PHP: 7.4
+Update URI: https://tokoweb.co/plugins/tutor-paid-topic-v2
+WC tested up to: 8.4
 */
+
 
 if (!defined('ABSPATH')) exit;
 
@@ -579,6 +590,40 @@ add_action('woocommerce_order_status_changed', function ($order_id, $old_status,
  */
 add_action('template_redirect', function () {
     if (!is_singular(['courses', 'tutor_course', 'lesson'])) return;
+    $user_id = get_current_user_id();
+    if (!$user_id) return;
+
+    // Ambil semua order WooCommerce user
+    $orders = wc_get_orders([
+        'customer_id' => $user_id,
+        'status'      => ['completed'],
+        'limit'       => -1,
+    ]);
+
+    global $wpdb;
+    $topics = [];
+
+    foreach ($orders as $order) {
+        foreach ($order->get_items() as $item) {
+            $pid = $item->get_product_id();
+            $tid = $wpdb->get_var($wpdb->prepare("
+                SELECT post_id FROM {$wpdb->postmeta}
+                WHERE meta_key = '_tpt_wc_id' AND meta_value = %d
+            ", $pid));
+            if ($tid) $topics[] = intval($tid);
+        }
+    }
+
+    if (!empty($topics)) {
+        $existing = get_user_meta($user_id, '_tpt_purchased_topics', true);
+        if (!is_array($existing)) $existing = [];
+        $merged = array_unique(array_merge($existing, $topics));
+        update_user_meta($user_id, '_tpt_purchased_topics', $merged);
+    }
+}, 30);
+
+add_action('template_redirect', function () {
+    if (!is_singular(['courses', 'tutor_course', 'lesson'])) return;
 
     $user_id = get_current_user_id();
     if (!$user_id) return;
@@ -739,14 +784,18 @@ function tpt_reset_user_data($user_id)
 }
 
 /**
- * 🔹 Tambahkan menu admin untuk reset user (opsional)
+ * 🔹 Menu Admin Utama: Reset Data
+ * - Parent: Reset Data
+ * - Submenu: Reset User Data & Reset Course Data
  */
 add_action('admin_menu', function () {
+
+    // 🌟 Parent menu
     add_menu_page(
-        'Reset User Data',
-        'Reset User Data',
+        'Reset Data',
+        'Reset Data',
         'manage_options',
-        'tpt-reset-user',
+        'tpt-reset-user', // tetap pakai slug ini biar kompatibel dengan submenu lama
         function () {
             if (isset($_POST['tpt_user_id'])) {
                 $user_id = intval($_POST['tpt_user_id']);
@@ -755,18 +804,53 @@ add_action('admin_menu', function () {
             }
     ?>
         <div class="wrap">
-            <h1>Reset Tutor LMS User Data</h1>
-            <form method="post">
-                <input type="number" name="tpt_user_id" placeholder="Masukkan User ID" required>
-                <button type="submit" class="button button-primary">Reset Data</button>
+            <h1>🧹 Reset User Data</h1>
+            <p>Gunakan fitur ini untuk menghapus semua data Tutor LMS dan Paid Topic untuk user tertentu.</p>
+            <form method="post" style="margin-top:15px;">
+                <label for="tpt_user_id"><strong>Masukkan User ID:</strong></label><br>
+                <input type="number" name="tpt_user_id" id="tpt_user_id" placeholder="Contoh: 12" required style="width:200px;margin-right:10px;">
+                <button type="submit" class="button button-primary">Reset User</button>
             </form>
         </div>
-<?php
+    <?php
         },
-        'dashicons-admin-users',
+        'dashicons-table-row-delete',
         81
     );
+
+    // 🌟 Submenu pertama: Reset User Data
+    add_submenu_page(
+        'tpt-reset-user',
+        'Reset User Data',
+        'Reset User Data',
+        'manage_options',
+        'tpt-reset-user',
+        function () {
+    ?>
+        <div class="wrap">
+            <h1>🧹 Reset User Data</h1>
+            <p>Gunakan fitur ini untuk menghapus semua data Tutor LMS dan Paid Topic untuk user tertentu.</p>
+            <form method="post" style="margin-top:15px;">
+                <label for="tpt_user_id"><strong>Masukkan User ID:</strong></label><br>
+                <input type="number" name="tpt_user_id" id="tpt_user_id" placeholder="Contoh: 12" required style="width:200px;margin-right:10px;">
+                <button type="submit" class="button button-primary">Reset User</button>
+            </form>
+        </div>
+    <?php
+        }
+    );
+
+    // 🌟 Submenu kedua: Reset Course Data
+    add_submenu_page(
+        'tpt-reset-user',
+        'Reset Course Data',
+        'Reset Course Data',
+        'manage_options',
+        'tpt-reset-course',
+        'tpt_reset_course_admin_page'
+    );
 });
+
 
 /**
  * 🔹 REST API Endpoint: User Progress (real-time, no cache)
@@ -784,11 +868,13 @@ add_action('rest_api_init', function () {
             // Ambil data langsung dari database
             $completed = get_user_meta($user_id, '_tpt_completed_topics', true) ?: [];
             $purchased = get_user_meta($user_id, '_tpt_purchased_topics', true) ?: [];
+            $lessons   = get_user_meta($user_id, '_tutor_lesson_completed', true) ?: [];
 
             return new WP_REST_Response([
                 'data' => [
-                    'completed' => array_values(array_filter($completed)),
-                    'purchased' => array_values(array_filter($purchased)),
+                    'completed'        => array_values(array_filter($completed)),
+                    'purchased'        => array_values(array_filter($purchased)),
+                    'lesson_completed' => array_values(array_filter($lessons)), // ✅ tambahan ini
                 ]
             ], 200);
         },
@@ -796,109 +882,61 @@ add_action('rest_api_init', function () {
     ]);
 });
 
-/**
- * 🔹 BARU: Cegah Akses Dashboard/Halaman Login-Required Jika Belum Diaktifkan (paksa logout)
- */
-add_action('template_redirect', function () {
-    if (!is_user_logged_in()) return;
+function tpt_reset_course_admin_page()
+{
+    ?>
+    <div class="wrap">
+        <h1>🧹 Reset Course Data</h1>
+        <p>Gunakan fitur ini untuk menghapus semua data enrolled dan order WooCommerce yang terkait dengan course tertentu.</p>
+        <p><strong>⚠️ Peringatan:</strong> Tindakan ini permanen, tidak dapat dibatalkan.</p>
 
-    $user_id = get_current_user_id();
-    $is_activated = get_user_meta($user_id, '_tpt_activated', true);
+        <form id="tpt-reset-course-form" style="margin-top:20px;">
+            <label for="tpt_course_id"><strong>Masukkan Course ID:</strong></label><br>
+            <input type="number" id="tpt_course_id" name="tpt_course_id" required placeholder="Contoh: 421" style="width:200px;margin-right:10px;">
+            <button type="submit" class="button button-primary">Reset Course</button>
+        </form>
 
-    // Jika belum diaktifkan, cegah akses ke halaman apa pun kecuali login dan aktivasi
-    if ($is_activated === false) {
-        $current_url = $_SERVER['REQUEST_URI'];
-        $allowed_pages = ['/wp-login.php', '/wp-json/tpt/v1/activate']; // Halaman yang boleh diakses
+        <div id="tpt-reset-course-result" style="margin-top:20px;"></div>
+    </div>
 
-        $is_allowed = false;
-        foreach ($allowed_pages as $page) {
-            if (strpos($current_url, $page) !== false) {
-                $is_allowed = true;
-                break;
-            }
-        }
+    <script>
+        jQuery(document).ready(function($) {
+            $('#tpt-reset-course-form').on('submit', function(e) {
+                e.preventDefault();
+                const courseId = $('#tpt_course_id').val();
+                if (!courseId) return;
 
-        if (!$is_allowed) {
-            wp_logout(); // Hapus sesi user
-            wp_redirect(site_url('/wp-login.php?activation_required=1'));
-            exit;
-        }
-    }
-}, 5); // Prioritas tinggi agar jalan duluan
+                $('#tpt-reset-course-result').html('<p><em>⏳ Memproses... mohon tunggu...</em></p>');
 
-/**
- * 🔹 BARU: Pesan Sukses/Error di Login Page
- */
-add_action('login_form', function () {
-    if (isset($_GET['activated']) && $_GET['activated'] == 1) {
-        echo '<div class="notice notice-success"><p>Akun Anda telah diaktifkan! Silakan login.</p></div>';
-    }
-    if (isset($_GET['activation_required']) && $_GET['activation_required'] == 1) {
-        echo '<div class="notice notice-error"><p>Akun Anda belum diaktifkan. Periksa email untuk link aktivasi.</p></div>';
-    }
-});
-
-/**
- * 🧩 PATCH FINAL: Force Refresh Tutor Dashboard Facts Realtime
- * Menghapus cache dashboard untuk user aktif setiap kali buka halaman dashboard
- */
-add_action('template_redirect', function () {
-    if (!is_user_logged_in()) return;
-
-    global $wpdb;
-    $user_id = get_current_user_id();
-
-    // Deteksi halaman dashboard Tutor LMS
-    if (is_page('dashboard') || (isset($_GET['tutor_dashboard']) && $_GET['tutor_dashboard'])) {
-
-        // 1️⃣ Hapus transient dashboard & student stats
-        delete_transient('tutor_dashboard_facts_' . $user_id);
-        delete_transient('tutor_student_stats_' . $user_id);
-        delete_transient('tutor_dashboard_facts');
-        delete_transient('tutor_student_stats');
-
-        // 2️⃣ Hapus cache di wp_options (bypass WP transient API)
-        $wpdb->query($wpdb->prepare("
-            DELETE FROM {$wpdb->options}
-            WHERE option_name LIKE %s OR option_name LIKE %s
-        ", '%tutor_dashboard_facts_' . $user_id . '%', '%tutor_student_stats_' . $user_id . '%'));
-
-        // 3️⃣ Log debugging
-        error_log("[TPT-PATCH] Tutor dashboard facts cache dihapus untuk user {$user_id}");
-    }
-}, 50);
-
-
-/**
- * 🧨 FINAL FIX: Override Dashboard Stats (Tutor LMS) — FIXED tanpa tabel completions
- */
-add_filter('tutor_dashboard/stats', function ($stats) {
-    global $wpdb;
-    $user_id = get_current_user_id();
-    if (!$user_id) return $stats;
-
-    // Hitung ulang enrolled dari DB (aman, tabel pasti ada)
-    $enrolled_count = (int) $wpdb->get_var($wpdb->prepare("
-        SELECT COUNT(*) FROM {$wpdb->prefix}tutor_enrolled WHERE user_id = %d
-    ", $user_id));
-
-    // Hitung completed dari meta user (fallback, karena tabel completions tidak ada)
-    $completed_topics = get_user_meta($user_id, '_tpt_completed_topics', true);
-    $completed_count  = is_array($completed_topics) ? count($completed_topics) : 0;
-
-    // Kalau tidak ada data sama sekali, paksa nol
-    if ($enrolled_count === 0 && $completed_count === 0) {
-        $stats['total_enrolled_courses']  = 0;
-        $stats['total_completed_courses'] = 0;
-        $stats['total_active_courses']    = 0;
-    }
-
-    // Pastikan meta Tutor juga diset ulang agar sinkron ke depan
-    update_user_meta($user_id, 'tutor_total_enroll', $enrolled_count);
-    update_user_meta($user_id, 'tutor_enrolled_courses', []);
-    update_user_meta($user_id, 'tutor_enrolled_courses_cache', []);
-
-    error_log("[TPT-FINAL] Tutor dashboard override: enrolled={$enrolled_count}, completed={$completed_count} (user {$user_id})");
-
-    return $stats;
-}, 999);
+                fetch('<?php echo rest_url("tpt/v1/reset-course-data"); ?>', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-WP-Nonce': '<?php echo wp_create_nonce("wp_rest"); ?>'
+                        },
+                        body: JSON.stringify({
+                            course_id: parseInt(courseId)
+                        })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            $('#tpt-reset-course-result').html(
+                                `<div class="notice notice-success is-dismissible"><p>✅ ${data.message}</p></div>`
+                            );
+                        } else {
+                            $('#tpt-reset-course-result').html(
+                                `<div class="notice notice-error"><p>❌ Gagal: ${data.error || 'Terjadi kesalahan.'}</p></div>`
+                            );
+                        }
+                    })
+                    .catch(err => {
+                        $('#tpt-reset-course-result').html(
+                            `<div class="notice notice-error"><p>🚨 Error: ${err.message}</p></div>`
+                        );
+                    });
+            });
+        });
+    </script>
+<?php
+}

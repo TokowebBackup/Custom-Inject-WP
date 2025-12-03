@@ -115,6 +115,13 @@ Dukungan
 
 Untuk dukungan, hubungi developer di [email atau forum terkait]. Pastikan sertakan versi WordPress, Tutor LMS, dan WooCommerce saat melaporkan issue.
 
+
+### Noted
+#### Endpoint reset enrolled tutor
+Endpoint:
+
+POST https://hashiwa.tokoweb.live/wp-json/tpt/v1/reset-course-data
+
 <img width="1920" height="2645" alt="77a7fe63-ac72-4b53-b446-693a037d92ad" src="https://github.com/user-attachments/assets/251eb69f-321f-4de6-8538-75af40f9fcb0" />
 <img width="1920" height="3673" alt="checkout-pembelian-course-bab-ke-2" src="https://github.com/user-attachments/assets/12e41c5a-ff9a-4b63-af39-23529eab8fac" />
 <img width="1920" height="3319" alt="payment-success-pembelian-course-bab-ke-2" src="https://github.com/user-attachments/assets/d1385f3f-e315-4097-a045-e9b92612f1b3" />

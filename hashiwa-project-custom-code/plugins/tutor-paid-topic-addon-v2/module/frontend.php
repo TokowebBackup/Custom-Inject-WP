@@ -200,11 +200,21 @@ add_action('wp_footer', function () {
         'status'      => ['completed'],
         'limit'       => -1,
     ]);
+    // 🩹 Ambil semua order yang belum selesai (pending, on-hold, processing, atau custom gateway)
     $orders_pending = wc_get_orders([
         'customer_id' => $user_id,
         'status'      => ['pending', 'on-hold', 'processing'],
         'limit'       => -1,
     ]);
+
+    // Tambahan: ambil juga order manual atau gateway custom yg belum complete
+    $orders_custom = wc_get_orders([
+        'customer_id' => $user_id,
+        'status'      => array_diff(wc_get_order_statuses(), ['wc-completed', 'wc-cancelled', 'wc-refunded']),
+        'limit'       => -1,
+    ]);
+
+    $orders_pending = array_merge($orders_pending, $orders_custom);
 
     $orderedCompleted = [];
     $orderedPending = [];
@@ -223,6 +233,27 @@ add_action('wp_footer', function () {
             if ($tid) $orderedPending[] = intval($tid);
         }
     }
+
+    // 🔍 Kumpulkan status spesifik tiap topic (on-hold vs processing)
+    $topicStatuses = [];
+
+    $all_orders = wc_get_orders([
+        'customer_id' => $user_id,
+        'limit' => -1,
+    ]);
+
+    foreach ($all_orders as $order) {
+        foreach ($order->get_items() as $item) {
+            $pid = $item->get_product_id();
+            $tid = $wpdb->get_var($wpdb->prepare("
+                SELECT post_id FROM {$wpdb->postmeta}
+                WHERE meta_key = '_tpt_wc_id' AND meta_value = %d
+            ", $pid));
+            if ($tid) {
+                $topicStatuses[intval($tid)] = str_replace('wc-', '', $order->get_status());
+            }
+        }
+    }
 ?>
     <script>
         document.addEventListener("DOMContentLoaded", () => {
@@ -232,9 +263,39 @@ add_action('wp_footer', function () {
             let purchased = JSON.parse(localStorage.getItem('tpt_purchased_topics') || '[]') || <?php echo json_encode($purchased); ?>;
             const orderedCompleted = <?php echo json_encode($orderedCompleted); ?>;
             const orderedPending = <?php echo json_encode($orderedPending); ?>;
+            const topicStatuses = <?php echo json_encode($topicStatuses); ?>;
 
             // 🩹 PATCH: Normalisasi ID ke integer
             const normalize = arr => Array.isArray(arr) ? arr.map(v => parseInt(v)) : [];
+            // ======================================================
+            // 🧠 New: Ambil data lesson progress per topic (real-time)
+            // ======================================================
+            const userLessonCompleted = <?php
+                                        $lessons = get_user_meta($user_id, '_tutor_lesson_completed', true);
+                                        if (!is_array($lessons)) $lessons = [];
+                                        echo json_encode($lessons);
+                                        ?>;
+
+            const topicLessonsMap = <?php
+                                    // Buat mapping: topic_id => array of lesson_ids
+                                    $topicLessonsMap = [];
+                                    foreach ($topics as $t) {
+                                        $lessons = $wpdb->get_col($wpdb->prepare("
+            SELECT ID FROM {$wpdb->posts}
+            WHERE post_parent = %d AND post_type = 'lesson' AND post_status = 'publish'
+        ", $t->ID));
+                                        $topicLessonsMap[intval($t->ID)] = array_map('intval', $lessons);
+                                    }
+                                    echo json_encode($topicLessonsMap);
+                                    ?>;
+
+            // Helper untuk cek apakah semua lesson di topic sudah complete
+            function isTopicFullyCompleted(topicId) {
+                const lessons = topicLessonsMap[topicId] || [];
+                if (lessons.length === 0) return true; // kalau nggak ada lesson, anggap complete
+                return lessons.every(lid => userLessonCompleted.includes(lid));
+            }
+
             const completedInt = normalize(completed);
             const purchasedInt = normalize(purchased);
             const orderedCompletedInt = normalize(orderedCompleted);
@@ -273,7 +334,10 @@ add_action('wp_footer', function () {
                     // =====================
                     const isCompleted = orderedCompletedInt.includes(topicId) || purchasedInt.includes(topicId);
                     const isPending = orderedPendingInt.includes(topicId);
-                    const prevCompleted = isFirst || completedInt.includes(prevId);
+                    const prevCompleted = isFirst || (
+                        completedInt.includes(prevId) ||
+                        isTopicFullyCompleted(prevId) // ✅ kalau semua lesson di topic sebelumnya selesai, juga dianggap completed
+                    );
                     const canBuyNow = prevCompleted && !isCompleted && !isPending;
 
                     // Default: header terkunci
@@ -316,23 +380,60 @@ add_action('wp_footer', function () {
                         header.style.cursor = "default";
                         overlay.style.display = 'none';
 
-                    } else if (isPending) {
-                        const badge = document.createElement('span');
-                        badge.textContent = "⏳ On Hold / Processing";
-                        badge.style.cssText = `
-        background:#FFF3CD;
-        color:#856404;
-        padding:4px 10px;
-        border-radius:6px;
-        font-size:12px;
-        font-weight:600;
-    `;
-                        rightCol.appendChild(badge);
-                        header.style.opacity = "0.5";
-                        header.style.pointerEvents = "none";
-                        header.style.cursor = "not-allowed";
-                        overlay.style.display = 'block';
+                        //                 } else if (isPending) {
+                        //                     const badge = document.createElement('span');
+                        //                     badge.textContent = "⏳ On Hold / Processing";
+                        //                     badge.style.cssText = `
+                        //     background:#FFF3CD;
+                        //     color:#856404;
+                        //     padding:4px 10px;
+                        //     border-radius:6px;
+                        //     font-size:12px;
+                        //     font-weight:600;
+                        // `;
+                        //                     rightCol.appendChild(badge);
+                        //                     header.style.opacity = "0.5";
+                        //                     header.style.pointerEvents = "none";
+                        //                     header.style.cursor = "not-allowed";
+                        //                     overlay.style.display = 'block';
 
+                        //                 }
+                    } else if (isPending) {
+                        const currentStatus = topicStatuses[topicId] || 'on-hold';
+                        const badge = document.createElement('span');
+
+                        if (currentStatus === 'processing') {
+                            badge.innerHTML = '<img draggable="false" role="img" class="emoji" alt="⚙️" src="https://s.w.org/images/core/emoji/17.0.2/svg/2699.svg"> Processing · Sedang Diproses';
+                            badge.style.cssText = `
+            background:#D1ECF1;
+            color:#0C5460;
+            padding:4px 10px;
+            border-radius:8px;
+            font-size:12px;
+            font-weight:600;
+        `;
+                            rightCol.appendChild(badge);
+                            // Processing dianggap belum bisa diakses (opsional bisa dibuka)
+                            header.style.opacity = "0.9";
+                            header.style.pointerEvents = "none";
+                            overlay.style.display = 'block';
+                            overlay.style.background = 'rgba(255,255,255,0.25)';
+                        } else {
+                            badge.innerHTML = '<img draggable="false" role="img" class="emoji" alt="🕓" src="https://s.w.org/images/core/emoji/17.0.2/svg/1f553.svg"> On Hold · Menunggu Pembayaran';
+                            badge.style.cssText = `
+            background:#FFF3CD;
+            color:#856404;
+            padding:4px 10px;
+            border-radius:8px;
+            font-size:12px;
+            font-weight:600;
+        `;
+                        }
+                        rightCol.appendChild(badge);
+                        header.style.opacity = "0.8";
+                        header.style.pointerEvents = "none";
+                        overlay.style.display = 'block';
+                        overlay.style.background = 'rgba(255,255,255,0.4)';
                     } else if (canBuyNow) {
                         // 🔒 Locked badge tapi tombol aktif
                         const badge = document.createElement('span');
@@ -464,6 +565,55 @@ add_action('wp_footer', function () {
 
         // Ulangi setiap 10 detik untuk sinkronisasi real-time
         setInterval(syncPurchasedTopics, 10000);
+
+        // 🧩 PATCH: Sinkronisasi ulang progress lesson setelah klik "Mark as Complete"
+        // jQuery(document).ajaxSuccess(function(event, xhr, settings) {
+        //     if (settings.data && settings.data.includes('tutor_complete_lesson')) {
+        //         console.log('🔄 Lesson marked complete, refreshing lesson progress...');
+        //         fetch(`/wp-json/tpt/v1/user-progress?user_id=${<?php echo get_current_user_id(); ?>}`)
+        //             .then(res => res.json())
+        //             .then(data => {
+        //                 if (data && data.lesson_completed) {
+        //                     localStorage.setItem('tpt_user_lesson_completed', JSON.stringify(data.lesson_completed));
+        //                     const lessonId = parseInt(settings.data.match(/lesson_id=(\d+)/)?.[1] || 0);
+        //                     if (lessonId && !userLessonCompleted.includes(lessonId)) {
+        //                         userLessonCompleted.push(lessonId);
+        //                         renderBuyButtons();
+        //                     }
+        //                 }
+        //             })
+        //             .catch(err => console.warn('❌ Gagal refresh lesson progress:', err));
+        //     }
+        // });
+        // versi patch
+        // 🧩 PATCH FINAL: Sinkronisasi progress lesson saat klik "Mark as Complete"
+        jQuery(document).ajaxSuccess(function(event, xhr, settings) {
+            if (settings.data && settings.data.includes('tutor_complete_lesson')) {
+                console.log('%c[TPT] Lesson marked complete → sync progress...', 'color:#28a745;font-weight:600');
+
+                fetch(`/wp-json/tpt/v1/user-progress?user_id=${<?php echo get_current_user_id(); ?>}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        const lessons = data?.data?.lesson_completed || [];
+                        const completedTopics = data?.data?.completed || [];
+
+                        // 🔁 Simpan di localStorage
+                        localStorage.setItem('tpt_user_lesson_completed', JSON.stringify(lessons));
+
+                        // 🔁 Update global memory agar renderBuyButtons() bisa akses
+                        window.userLessonCompleted = lessons;
+                        window.completedInt = completedTopics.map(v => parseInt(v));
+
+                        // 🔁 Render ulang UI
+                        if (typeof renderBuyButtons === "function") {
+                            renderBuyButtons();
+                        }
+
+                        console.log('%c[TPT] Lesson sync success → re-rendered.', 'color:#00bcd4;font-weight:600');
+                    })
+                    .catch(err => console.warn('[TPT] ❌ Gagal sync lesson:', err));
+            }
+        });
 
         window.addEventListener('storage', () => {
             const updated = JSON.parse(localStorage.getItem('tpt_purchased_topics') || '[]');
@@ -783,5 +933,74 @@ add_action('wp_footer', function () {
             color: #fff;
         }
     </style>
+<?php
+});
+
+
+/**
+ * 🧩 PATCH: Dinamis badge di accordion (Login user → tampil order/progress)
+ */
+add_action('wp_footer', function () {
+    if (!is_singular('courses')) return;
+
+    $user_id = get_current_user_id();
+    if (!$user_id) return; // biarkan locked jika belum login
+
+    global $wpdb;
+    $course_id = get_the_ID();
+    $completed = get_user_meta($user_id, '_tpt_completed_topics', true) ?: [];
+    $purchased = get_user_meta($user_id, '_tpt_purchased_topics', true) ?: [];
+
+    $topics = $wpdb->get_results($wpdb->prepare("
+        SELECT t.ID, t.post_title, p2.meta_value AS wc_id, pm_price.meta_value AS price
+        FROM {$wpdb->posts} t
+        LEFT JOIN {$wpdb->postmeta} p2 ON p2.post_id = t.ID AND p2.meta_key = '_tpt_wc_id'
+        LEFT JOIN {$wpdb->postmeta} pm_price ON pm_price.post_id = t.ID AND pm_price.meta_key = '_tpt_price'
+        WHERE t.post_parent = %d
+          AND t.post_type IN ('topics','topic')
+          AND t.post_status='publish'
+        ORDER BY t.menu_order ASC
+    ", $course_id));
+?>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const topics = <?php echo json_encode($topics); ?>;
+            const completed = <?php echo json_encode($completed); ?>;
+            const purchased = <?php echo json_encode($purchased); ?>;
+
+            const normalize = arr => Array.isArray(arr) ? arr.map(v => parseInt(v)) : [];
+            const completedInt = normalize(completed);
+            const purchasedInt = normalize(purchased);
+
+            document.querySelectorAll('.tutor-accordion-item-header').forEach(header => {
+                const title = header.textContent.trim();
+                const topic = topics.find(t => title.includes(t.post_title));
+                if (!topic) return;
+
+                const topicId = parseInt(topic.ID);
+                const price = parseInt(topic.price || 0);
+
+                const badge = header.querySelector('.tpt-topic-badge');
+                if (!badge) return;
+
+                badge.innerHTML = '';
+                badge.style = 'padding:4px 10px;border-radius:8px;font-size:12px;font-weight:600;';
+
+                if (completedInt.includes(topicId)) {
+                    badge.style.background = '#D4EDDA';
+                    badge.style.color = '#155724';
+                    badge.innerHTML = '✅ Order: Completed';
+                } else if (purchasedInt.includes(topicId)) {
+                    badge.style.background = '#D1ECF1';
+                    badge.style.color = '#0C5460';
+                    badge.innerHTML = '⏳ Purchased (On Hold)';
+                } else {
+                    badge.style.background = '#FFE4E9';
+                    badge.style.color = '#ED2D56';
+                    badge.innerHTML = `🔒 Locked · Rp ${price.toLocaleString('id-ID')}`;
+                }
+            });
+        });
+    </script>
 <?php
 });
