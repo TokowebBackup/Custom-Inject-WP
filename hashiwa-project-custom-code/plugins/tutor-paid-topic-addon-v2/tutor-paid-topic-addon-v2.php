@@ -55,6 +55,11 @@ add_action('wp_enqueue_scripts', function () {
         );
     }
 });
+add_action('wp_enqueue_scripts', function () {
+    if (is_checkout_pay_page()) {
+        wp_enqueue_style('tpt-checkout-style', plugin_dir_url(__FILE__) . 'assets/checkout.css', [], time());
+    }
+});
 // =====================
 // 1️⃣ Load JS admin (fix untuk Tutor React Builder)
 // =====================
@@ -940,3 +945,122 @@ function tpt_reset_course_admin_page()
     </script>
 <?php
 }
+
+/**
+ * 🔐 PATCH: Cegah rendering konten dashboard untuk user belum aktivasi
+ */
+add_action('template_redirect', function () {
+    if (!is_page('dashboard')) return; // hanya untuk halaman dashboard
+    if (!is_user_logged_in()) return;  // skip kalau belum login
+
+    $user_id = get_current_user_id();
+    $activated = get_user_meta($user_id, '_tpt_activated', true);
+
+    // cek query string
+    $activation_required = isset($_GET['activation_required']) && $_GET['activation_required'] == 1;
+
+    if (!$activated && !$activation_required) {
+        // redirect ke dashboard + query ?activation_required=1
+        wp_safe_redirect(site_url('/dashboard/?activation_required=1'));
+        exit;
+    }
+
+    if (!$activated && $activation_required) {
+        // User belum aktivasi, tampilkan alert dan hentikan rendering konten dashboard
+        add_filter('the_content', function ($content) {
+            return '<div class="tpt-activation-alert" style="padding:20px;background:#ffe3e3;border:1px solid #ed2d56;border-radius:8px;margin:20px 0;text-align:center;font-weight:bold;color:#ed2d56;">
+                        ⚠️ Akun Anda belum diaktivasi. Periksa email untuk link aktivasi.
+                    </div>';
+        });
+
+        // Optional: hentikan action Tutor LMS yang render dashboard
+        remove_all_actions('tutor_dashboard_content');
+        remove_all_actions('tutor_dashboard_main_content');
+    }
+}, 1); // priority tinggi supaya dijalankan lebih awal
+
+/**
+ * 🧩 PATCH: Hilangkan input quantity di cart untuk produk Tutor Paid Topic
+ */
+add_filter('woocommerce_cart_item_quantity', function ($product_quantity, $cart_item_key, $cart_item) {
+    $product_id = $cart_item['product_id'];
+    $is_topic_product = get_post_meta($product_id, '_tpt_topic_id', true);
+
+    // Kalau ini produk dari topic (Tutor Paid Topic), tampilkan tanpa input qty
+    if ($is_topic_product) {
+        return '<span class="tpt-fixed-qty" style="font-weight:600;">1</span>';
+    }
+
+    // Default WooCommerce
+    return $product_quantity;
+}, 10, 3);
+
+/**
+ * 🔒 PATCH: Lock quantity = 1 untuk produk Paid Topic
+ */
+add_filter('woocommerce_is_sold_individually', function ($sold_individually, $product) {
+    if (get_post_meta($product->get_id(), '_tpt_topic_id', true)) {
+        return true; // hanya boleh 1
+    }
+    return $sold_individually;
+}, 10, 2);
+
+
+/**
+ * 🧩 Pengaturan Registrasi: Pilih Produk WooCommerce untuk Biaya Registrasi
+ */
+add_action('admin_menu', function () {
+    add_menu_page(
+        'Registrasi Student Settings',
+        'Registrasi Student',
+        'manage_options',
+        'tpt-registration-settings',
+        'tpt_registration_settings_page',
+        'dashicons-id', // ikon bebas
+        82 // posisi di bawah Tutor LMS
+    );
+});
+
+
+function tpt_registration_settings_page()
+{
+    // Simpan pengaturan saat disubmit
+    if (isset($_POST['tpt_registration_product_id'])) {
+        update_option('tpt_registration_product_id', intval($_POST['tpt_registration_product_id']));
+        echo '<div class="updated"><p>✅ Pengaturan disimpan!</p></div>';
+    }
+
+    $selected_product = get_option('tpt_registration_product_id');
+    $products = wc_get_products([
+        'limit' => -1,
+        'status' => 'publish',
+        'orderby' => 'name',
+        'order' => 'ASC',
+    ]);
+?>
+    <div class="wrap">
+        <h1>⚙️ Pengaturan Registrasi Student</h1>
+        <form method="post">
+            <table class="form-table">
+                <tr>
+                    <th scope="row"><label for="tpt_registration_product_id">Produk Biaya Registrasi</label></th>
+                    <td>
+                        <select name="tpt_registration_product_id" id="tpt_registration_product_id">
+                            <option value="">— Pilih Produk —</option>
+                            <?php foreach ($products as $product): ?>
+                                <option value="<?php echo esc_attr($product->get_id()); ?>"
+                                    <?php selected($selected_product, $product->get_id()); ?>>
+                                    <?php echo esc_html($product->get_name()); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </td>
+                </tr>
+            </table>
+            <p class="submit">
+                <button type="submit" class="button button-primary">Simpan Pengaturan</button>
+            </p>
+        </form>
+    </div>
+<?php
+} // ✅ tambahkan penutup ini

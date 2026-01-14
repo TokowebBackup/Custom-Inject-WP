@@ -164,7 +164,7 @@ add_action('wp_footer', function () {
  * 🔹 FRONTEND: Lock Indicator + Badge + Buy Button (Final with Order Status)
  */
 add_action('wp_footer', function () {
-    if (!is_singular(['courses', 'tutor_course', 'lesson'])) return;
+    if (!is_singular(['courses', 'tutor_course', 'lesson', 'tutor_quiz'])) return;
 
     $user_id = get_current_user_id();
     if (!$user_id) return;
@@ -276,25 +276,61 @@ add_action('wp_footer', function () {
                                         echo json_encode($lessons);
                                         ?>;
 
+            //     const topicLessonsMap = <?php
+                                            //                             // Buat mapping: topic_id => array of lesson_ids
+                                            //                             $topicLessonsMap = [];
+                                            //                             foreach ($topics as $t) {
+                                            //                                 $lessons = $wpdb->get_col($wpdb->prepare("
+                                            //     SELECT ID FROM {$wpdb->posts}
+                                            //     WHERE post_parent = %d AND post_type = 'lesson' AND post_status = 'publish'
+                                            // ", $t->ID));
+                                            //                                 $topicLessonsMap[intval($t->ID)] = array_map('intval', $lessons);
+                                            //                             }
+                                            //                             echo json_encode($topicLessonsMap);
+                                            //                             
+                                            ?>;
+
+            //     // Helper untuk cek apakah semua lesson di topic sudah complete
+            //     function isTopicFullyCompleted(topicId) {
+            //         const lessons = topicLessonsMap[topicId] || [];
+            //         if (lessons.length === 0) return true; // kalau nggak ada lesson, anggap complete
+            //         return lessons.every(lid => userLessonCompleted.includes(lid));
+            //     }
             const topicLessonsMap = <?php
-                                    // Buat mapping: topic_id => array of lesson_ids
                                     $topicLessonsMap = [];
+                                    $topicQuizMap = [];
                                     foreach ($topics as $t) {
                                         $lessons = $wpdb->get_col($wpdb->prepare("
             SELECT ID FROM {$wpdb->posts}
             WHERE post_parent = %d AND post_type = 'lesson' AND post_status = 'publish'
         ", $t->ID));
+                                        $quizzes = $wpdb->get_col($wpdb->prepare("
+            SELECT ID FROM {$wpdb->posts}
+            WHERE post_parent = %d AND post_type = 'tutor_quiz' AND post_status = 'publish'
+        ", $t->ID));
+
                                         $topicLessonsMap[intval($t->ID)] = array_map('intval', $lessons);
+                                        $topicQuizMap[intval($t->ID)] = array_map('intval', $quizzes);
                                     }
                                     echo json_encode($topicLessonsMap);
                                     ?>;
 
-            // Helper untuk cek apakah semua lesson di topic sudah complete
+            const topicQuizMap = <?php echo json_encode($topicQuizMap); ?>;
+
+            // Helper untuk cek apakah semua lesson & quiz di topic sudah complete
             function isTopicFullyCompleted(topicId) {
                 const lessons = topicLessonsMap[topicId] || [];
-                if (lessons.length === 0) return true; // kalau nggak ada lesson, anggap complete
-                return lessons.every(lid => userLessonCompleted.includes(lid));
+                const quizzes = topicQuizMap[topicId] || [];
+
+                // Jika tidak ada lesson & quiz, baru dianggap complete
+                if (lessons.length === 0 && quizzes.length === 0) return true;
+
+                const allLessonsDone = lessons.every(lid => userLessonCompleted.includes(lid));
+                const allQuizzesDone = quizzes.every(qid => userLessonCompleted.includes(qid) || completedInt.includes(topicId));
+
+                return allLessonsDone && allQuizzesDone;
             }
+
 
             const completedInt = normalize(completed);
             const purchasedInt = normalize(purchased);
@@ -335,8 +371,8 @@ add_action('wp_footer', function () {
                     const isCompleted = orderedCompletedInt.includes(topicId) || purchasedInt.includes(topicId);
                     const isPending = orderedPendingInt.includes(topicId);
                     const prevCompleted = isFirst || (
-                        completedInt.includes(prevId) ||
-                        isTopicFullyCompleted(prevId) // ✅ kalau semua lesson di topic sebelumnya selesai, juga dianggap completed
+                        completedInt.includes(prevId) &&
+                        (topicLessonsMap[prevId] || []).every(lid => userLessonCompleted.includes(lid))
                     );
                     const canBuyNow = prevCompleted && !isCompleted && !isPending;
 
@@ -402,38 +438,55 @@ add_action('wp_footer', function () {
                         const currentStatus = topicStatuses[topicId] || 'on-hold';
                         const badge = document.createElement('span');
 
-                        if (currentStatus === 'processing') {
-                            badge.innerHTML = '<img draggable="false" role="img" class="emoji" alt="⚙️" src="https://s.w.org/images/core/emoji/17.0.2/svg/2699.svg"> Processing · Sedang Diproses';
-                            badge.style.cssText = `
-            background:#D1ECF1;
-            color:#0C5460;
-            padding:4px 10px;
-            border-radius:8px;
-            font-size:12px;
-            font-weight:600;
-        `;
-                            rightCol.appendChild(badge);
-                            // Processing dianggap belum bisa diakses (opsional bisa dibuka)
-                            header.style.opacity = "0.9";
-                            header.style.pointerEvents = "none";
-                            overlay.style.display = 'block';
-                            overlay.style.background = 'rgba(255,255,255,0.25)';
-                        } else {
-                            badge.innerHTML = '<img draggable="false" role="img" class="emoji" alt="🕓" src="https://s.w.org/images/core/emoji/17.0.2/svg/1f553.svg"> On Hold · Menunggu Pembayaran';
-                            badge.style.cssText = `
-            background:#FFF3CD;
-            color:#856404;
-            padding:4px 10px;
-            border-radius:8px;
-            font-size:12px;
-            font-weight:600;
-        `;
+                        switch (currentStatus) {
+                            case 'processing':
+                                badge.innerHTML = '<img draggable="false" role="img" alt="⚙️" src="https://s.w.org/images/core/emoji/17.0.2/svg/2699.svg" style="width:14px;height:14px;margin-right:4px;vertical-align:middle;"> Processing · Sedang Diproses';
+                                badge.style.background = '#D1ECF1';
+                                badge.style.color = '#0C5460';
+                                header.style.opacity = "0.9";
+                                break;
+
+                            case 'pending':
+                                badge.innerHTML = '<img draggable="false" role="img" alt="⏳" src="https://s.w.org/images/core/emoji/17.0.2/svg/23f3.svg" style="width:14px;height:14px;margin-right:4px;vertical-align:middle;"> Pending · Menunggu Konfirmasi';
+                                badge.style.background = '#FFF3CD';
+                                badge.style.color = '#856404';
+                                header.style.opacity = "0.8";
+                                break;
+
+                            case 'on-hold':
+                                badge.innerHTML = '<img draggable="false" role="img" alt="🕓" src="https://s.w.org/images/core/emoji/17.0.2/svg/1f553.svg" style="width:14px;height:14px;margin-right:4px;vertical-align:middle;"> On Hold · Menunggu Pembayaran';
+                                badge.style.background = '#FFF3CD';
+                                badge.style.color = '#856404';
+                                header.style.opacity = "0.8";
+                                break;
+
+                            case 'failed':
+                                badge.innerHTML = '<img draggable="false" role="img" alt="❌" src="https://s.w.org/images/core/emoji/17.0.2/svg/274c.svg" style="width:14px;height:14px;margin-right:4px;vertical-align:middle;"> Failed · Pembayaran Gagal';
+                                badge.style.background = '#F8D7DA';
+                                badge.style.color = '#721C24';
+                                header.style.opacity = "0.7";
+                                break;
+
+                            case 'cancelled':
+                                badge.innerHTML = '<img draggable="false" role="img" alt="🚫" src="https://s.w.org/images/core/emoji/17.0.2/svg/1f6ab.svg" style="width:14px;height:14px;margin-right:4px;vertical-align:middle;"> Cancelled · Dibatalkan';
+                                badge.style.background = '#E2E3E5';
+                                badge.style.color = '#383D41';
+                                header.style.opacity = "0.7";
+                                break;
+
+                            default:
+                                badge.innerHTML = `<img draggable="false" role="img" alt="🕓" src="https://s.w.org/images/core/emoji/17.0.2/svg/1f553.svg" style="width:14px;height:14px;margin-right:4px;vertical-align:middle;"> ${currentStatus}`;
+                                badge.style.background = '#FFF3CD';
+                                badge.style.color = '#856404';
+                                header.style.opacity = "0.8";
                         }
+
+                        badge.style.cssText += 'padding:4px 10px;border-radius:8px;font-size:12px;font-weight:600;';
                         rightCol.appendChild(badge);
-                        header.style.opacity = "0.8";
-                        header.style.pointerEvents = "none";
+
                         overlay.style.display = 'block';
                         overlay.style.background = 'rgba(255,255,255,0.4)';
+                        header.style.pointerEvents = "none";
                     } else if (canBuyNow) {
                         // 🔒 Locked badge tapi tombol aktif
                         const badge = document.createElement('span');
@@ -565,6 +618,44 @@ add_action('wp_footer', function () {
 
         // Ulangi setiap 10 detik untuk sinkronisasi real-time
         setInterval(syncPurchasedTopics, 10000);
+        // 🔁 Auto-refresh order status tiap 10 detik (biar Processing → Completed update otomatis)
+        async function syncOrderStatuses() {
+            try {
+                const res = await fetch(`/wp-json/tpt/v1/user-progress?user_id=${<?php echo get_current_user_id(); ?>}`);
+                const data = await res.json();
+
+                if (data?.data?.order_statuses) {
+                    const topicStatuses = data.data.order_statuses;
+                    console.log('%c[TPT] 🔄 Sync order statuses:', 'color:#2196F3;font-weight:bold;', topicStatuses);
+
+                    // Update badge topic langsung
+                    document.querySelectorAll('.tutor-course-topic').forEach(el => {
+                        const match = el.className.match(/tutor-course-topic-(\d+)/);
+                        const topicId = match ? parseInt(match[1]) : 0;
+                        if (!topicId) return;
+
+                        const header = el.querySelector('.tutor-accordion-item-header');
+                        const badge = header?.querySelector('span');
+                        if (!badge) return;
+
+                        const status = topicStatuses[topicId];
+                        if (status === 'completed') {
+                            badge.innerHTML = '<img draggable="false" role="img" alt="✅" src="https://s.w.org/images/core/emoji/17.0.2/svg/2705.svg" style="width:14px;height:14px;margin-right:4px;vertical-align:middle;"> Order: Completed';
+                            badge.style.background = '#D4EDDA';
+                            badge.style.color = '#155724';
+                            header.style.opacity = '1';
+                            header.style.pointerEvents = 'auto';
+                        }
+                    });
+                }
+            } catch (err) {
+                console.warn('❌ Gagal sync order statuses:', err);
+            }
+        }
+
+        // Jalankan auto-sync setiap 10 detik
+        setInterval(syncOrderStatuses, 10000);
+
 
         // 🧩 PATCH: Sinkronisasi ulang progress lesson setelah klik "Mark as Complete"
         // jQuery(document).ajaxSuccess(function(event, xhr, settings) {

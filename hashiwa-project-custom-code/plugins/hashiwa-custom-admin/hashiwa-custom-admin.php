@@ -1,9 +1,13 @@
 <?php
 
 /**
- * FINAL FIX – 100% NO BLANK PAGE
- * Semua fungsi WP dijalankan setelah plugins_loaded
+ * Plugin Name: Hashiwa Custom Admin
+ * Description: Custom shortcode, admin UI, protection for Code Snippets, and WooCommerce menu modifications.
+ * Author: Puji Ermanto<pujiermanto@gmail.com> | AKA Marwoto
+ * Version: 1.0
  */
+
+if (!defined('ABSPATH')) exit; // Prevent direct access
 
 add_action('plugins_loaded', function () {
 
@@ -24,12 +28,12 @@ add_action('plugins_loaded', function () {
     ======================================================= */
     if (!is_admin()) return;
 
-    /* REGISTER MENU */
+    /* REGISTER BOTTOM MENU */
     add_action('after_setup_theme', function () {
         register_nav_menu('bottom-menu', 'Bottom Navbar Menu');
     });
 
-    /* ADMIN TEXT REPLACE */
+    /* ADMIN TEXT REPLACER */
     add_action('admin_init', function () {
         global $wp_version;
         add_filter('gettext', function ($translated, $text) use ($wp_version) {
@@ -39,7 +43,7 @@ add_action('plugins_loaded', function () {
         }, 10, 3);
     });
 
-    /* ICON */
+    /* CHANGE ICON FOR CODE SNIPPETS MENU */
     add_action('admin_head', function () {
         $icon_url = esc_url(home_url('/wp-content/uploads/2025/11/fav-1-1-2.webp'));
         echo "
@@ -56,7 +60,7 @@ add_action('plugins_loaded', function () {
         </style>";
     });
 
-    /* LOAD SWEETALERT */
+    /* LOAD SWEETALERT ONLY ON SNIPPETS PAGES */
     add_action('admin_enqueue_scripts', function () {
         if (!isset($_GET['page']) || strpos($_GET['page'], 'snippets') === false) return;
 
@@ -70,18 +74,18 @@ add_action('plugins_loaded', function () {
         ");
     });
 
-    /* AJAX PASSWORD CHECK */
+    /* AJAX PASSWORD CHECKER */
     add_action('wp_ajax_check_snippet_password', function () {
         check_ajax_referer('snippets_pw_check', 'nonce');
 
-        $correct_pw = '123';
+        $correct_pw = '123'; // ⬅ bisa diganti
         $input = sanitize_text_field($_POST['password'] ?? '');
 
         if ($input === $correct_pw) wp_send_json_success();
         wp_send_json_error();
     });
 
-    /* PASSWORD PROTECT */
+    /* PASSWORD OVERLAY PROTECTOR */
     add_action('admin_footer', function () {
         $screen = function_exists('get_current_screen') ? get_current_screen() : null;
         if (!$screen) return;
@@ -150,7 +154,7 @@ add_action('plugins_loaded', function () {
 <?php
     });
 
-    /* MENU NAME MODIFY */
+    /* MODIFY LMS MENU NAME */
     add_action('admin_menu', function () {
         global $menu;
         foreach ($menu as $k => $item) {
@@ -161,7 +165,7 @@ add_action('plugins_loaded', function () {
         }
     }, 999);
 
-    /* WOOCOMMERCE ORDER TOPICS */
+    /* WOOCOMMERCE — ORDER TOPICS MENU */
     add_action('admin_menu', function () {
         remove_submenu_page('woocommerce', 'edit.php?post_type=shop_order');
 

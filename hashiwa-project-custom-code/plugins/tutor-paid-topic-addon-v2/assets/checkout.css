@@ -1,0 +1,101 @@
+/* === Custom Checkout Payment Page Style (Scoped Fix) === */
+body.woocommerce-order-pay .entry-content>.woocommerce {
+    background: #fff;
+    max-width: 800px;
+    margin: 60px auto;
+    padding: 40px;
+    border-radius: 16px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* Tabel checkout */
+body.woocommerce-order-pay table.shop_table {
+    border: none;
+    width: 100%;
+    border-collapse: collapse;
+}
+
+body.woocommerce-order-pay table.shop_table th,
+body.woocommerce-order-pay table.shop_table td {
+    padding: 14px 10px;
+    border-bottom: 1px solid #eee;
+    font-size: 15px;
+}
+
+body.woocommerce-order-pay table.shop_table tfoot td {
+    font-weight: 600;
+    color: #333;
+}
+
+/* Box metode pembayaran */
+body.woocommerce-order-pay .woocommerce-checkout-payment {
+    margin-top: 40px;
+    background: #fafafa;
+    border-radius: 10px;
+    padding: 25px;
+    border: 1px solid #eee;
+}
+
+body.woocommerce-order-pay .payment_methods li {
+    list-style: none;
+    background: #fff;
+    margin-bottom: 12px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    padding: 12px 15px;
+    transition: all 0.3s ease;
+}
+
+body.woocommerce-order-pay .payment_methods li:hover {
+    border-color: #ED2D56;
+    background: #fff8f9;
+}
+
+body.woocommerce-order-pay .payment_methods input {
+    accent-color: #ED2D56;
+}
+
+/* Tombol Pay Order */
+body.woocommerce-order-pay button#place_order,
+body.woocommerce-order-pay .button {
+    background: #ED2D56;
+    color: #fff;
+    font-weight: 600;
+    border: none;
+    padding: 12px 28px;
+    border-radius: 8px;
+    transition: 0.3s ease;
+    cursor: pointer;
+}
+
+body.woocommerce-order-pay button#place_order:hover,
+body.woocommerce-order-pay .button:hover {
+    background: #fff;
+    color: #ED2D56;
+    border: 1px solid #ED2D56;
+}
+
+/* Privacy note */
+body.woocommerce-order-pay .woocommerce-privacy-policy-text {
+    font-size: 13px;
+    color: #666;
+    margin-top: 12px;
+    text-align: center;
+}
+
+/* Optional: efek animasi halus */
+body.woocommerce-order-pay .entry-content>.woocommerce {
+    animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

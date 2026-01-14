@@ -22,12 +22,13 @@ add_action('init', function () {
 
     register_post_type('program', [
         'labels'        => $labels,
-        'public'        => false,
+        'public'        => true,
+        'publicly_queryable' => true,
         'show_ui'       => true,
         'menu_icon'     => 'dashicons-welcome-learn-more',
         'supports'      => ['title', 'thumbnail', 'editor', 'excerpt'],
         'has_archive'   => false,
-        'rewrite'       => false,
+        'rewrite'       => ['slug' => 'program'],
         'show_in_rest'  => true,   // 🔥 MATIKAN agar kompatibel dg slug 'tutor'
         'show_in_menu' => false     // 🔥 WAJIB agar tidak buat menu baru
     ]);

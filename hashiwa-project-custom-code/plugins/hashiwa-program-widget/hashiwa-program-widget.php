@@ -13,6 +13,10 @@ if (! defined('ABSPATH')) exit;
 define('HASHIWA_PW_PATH', plugin_dir_path(__FILE__));
 define('HASHIWA_PW_URL', plugin_dir_url(__FILE__));
 
+add_action('init', function () {
+    flush_rewrite_rules();
+});
+
 // Load CPT
 require_once HASHIWA_PW_PATH . 'post-types/program.php';
 

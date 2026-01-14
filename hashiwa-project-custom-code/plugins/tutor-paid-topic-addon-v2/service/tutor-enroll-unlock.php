@@ -9,6 +9,15 @@ if (!defined('ABSPATH')) exit;
 remove_action('template_redirect', 'tutor_lesson_access_restriction');
 
 add_action('template_redirect', function () {
+    if (!empty($_POST['tutor_action']) && in_array($_POST['tutor_action'], [
+        'tutor_start_quiz',
+        'tutor_answering_quiz_question',
+        'tutor_quiz_submit',
+        'tutor_quiz_answer_submit'
+    ])) {
+        return; // ✅ Bypass semua proses redirect custom saat quiz berjalan
+    }
+
     if (!is_singular('lesson')) return;
 
     $lesson_id = get_the_ID();
@@ -136,6 +145,16 @@ add_filter('tutor_course_get_topics', function ($topics, $course_id) {
  * 🔹 3. Cegah akses langsung ke lesson dari topic yang belum dibeli
  */
 add_action('template_redirect', function () {
+    // ✅ Bypass kalau sedang mulai / submit quiz
+    if (!empty($_POST['tutor_action']) && in_array($_POST['tutor_action'], [
+        'tutor_start_quiz',
+        'tutor_answering_quiz_question',
+        'tutor_quiz_submit',
+        'tutor_quiz_answer_submit'
+    ])) {
+        return; // ✅ Bypass semua proses redirect custom saat quiz berjalan
+    }
+
     if (!is_singular('lesson')) return;
 
     global $wpdb;
@@ -273,6 +292,15 @@ add_action('tutor_lesson_completed_after', function ($lesson_id, $user_id) {
  * (Hook di priority tinggi agar Tutor core sudah inisialisasi penuh)
  */
 add_action('template_redirect', function () {
+    if (!empty($_POST['tutor_action']) && in_array($_POST['tutor_action'], [
+        'tutor_start_quiz',
+        'tutor_answering_quiz_question',
+        'tutor_quiz_submit',
+        'tutor_quiz_answer_submit'
+    ])) {
+        return; // ✅ Bypass semua proses redirect custom saat quiz berjalan
+    }
+
     if (!is_user_logged_in() || empty($_POST['tutor_action'])) return;
 
     if ($_POST['tutor_action'] === 'tutor_complete_lesson') {
