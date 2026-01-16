@@ -164,73 +164,29 @@ add_action('tutor_after_student_signup', function ($user_id) {
     //     exit;
     // }
 
-    // if (class_exists('WC_Order')) {
-    //     // Buat order TANPA customer_id agar WooCommerce tidak auto-login
-    //     $order = wc_create_order(['status' => 'pending']);
-
-    //     $order->add_product(wc_get_product($registration_product_id), 1);
-    //     $order->calculate_totals();
-
-    //     // ✅ Tambahkan info billing agar Midtrans valid
-    //     $user_email = $user->user_email ?? '';
-    //     $user_name = $user->display_name ?? $user->user_login;
-    //     $order->set_billing_email($user_email);
-    //     $order->set_billing_first_name($user_name ?: 'Student');
-    //     $order->set_billing_last_name('');
-    //     $order->set_billing_phone(get_user_meta($user_id, 'billing_phone', true) ?: '081234567890');
-    //     $order->save();
-
-    //     // Simpan user_id manual TANPA auto-login
-    //     update_post_meta($order->get_id(), '_customer_user', $user_id);
-
-    //     // Simpan juga data order di user meta untuk tracking
-    //     update_user_meta($user_id, '_tpt_registration_order_id', $order->get_id());
-
-    //     // Pastikan semua session WooCommerce dibersihkan
-    //     if (class_exists('WC_Session_Handler') && function_exists('WC')) {
-    //         if (WC()->session) {
-    //             WC()->session->destroy_session();
-    //         }
-    //         if (WC()->cart) {
-    //             WC()->cart->empty_cart();
-    //         }
-    //     }
-
-    //     // Logout paksa agar tidak ada cookie login tersisa
-    //     wp_logout();
-
-    //     // Redirect user ke halaman pembayaran (order-pay)
-    //     $checkout_url = $order->get_checkout_payment_url();
-    //     wp_redirect($checkout_url);
-    //     exit;
-    // }
     if (class_exists('WC_Order')) {
-        // 1. Buat order sebagai GUEST dulu (customer_id = 0) 
-        // Ini kunci agar halaman 'order-pay' bisa dibuka tanpa login
+        // Buat order TANPA customer_id agar WooCommerce tidak auto-login
         $order = wc_create_order(['status' => 'pending']);
 
         $order->add_product(wc_get_product($registration_product_id), 1);
-
-        // 2. Isi data Billing (PENTING: ini yang membuat nama muncul di list order)
-        $user_email = $user->user_email ?? '';
-        $user_name  = $user->display_name ?? $user->user_login;
-
-        $order->set_billing_email($user_email);
-        $order->set_billing_first_name($user->first_name ?: $user_name);
-        $order->set_billing_last_name($user->last_name ?: '');
-        $order->set_billing_phone(get_user_meta($user_id, 'billing_phone', true) ?: '');
-
-        // 3. Simpan User ID ke Meta tersembunyi (agar Admin bisa lihat, tapi sistem tidak mengunci akses)
-        $order->update_meta_data('_customer_user', $user_id);
-        $order->update_meta_data('_tpt_is_registration', 'yes'); // Penanda untuk proses kita nanti
-
         $order->calculate_totals();
+
+        // ✅ Tambahkan info billing agar Midtrans valid
+        $user_email = $user->user_email ?? '';
+        $user_name = $user->display_name ?? $user->user_login;
+        $order->set_billing_email($user_email);
+        $order->set_billing_first_name($user_name ?: 'Student');
+        $order->set_billing_last_name('');
+        $order->set_billing_phone(get_user_meta($user_id, 'billing_phone', true) ?: '081234567890');
         $order->save();
 
-        // Simpan meta di sisi User untuk pelacakan
+        // Simpan user_id manual TANPA auto-login
+        update_post_meta($order->get_id(), '_customer_user', $user_id);
+
+        // Simpan juga data order di user meta untuk tracking
         update_user_meta($user_id, '_tpt_registration_order_id', $order->get_id());
 
-        // 4. Bersihkan Session & Logout
+        // Pastikan semua session WooCommerce dibersihkan
         if (class_exists('WC_Session_Handler') && function_exists('WC')) {
             if (WC()->session) {
                 WC()->session->destroy_session();
@@ -239,9 +195,11 @@ add_action('tutor_after_student_signup', function ($user_id) {
                 WC()->cart->empty_cart();
             }
         }
+
+        // Logout paksa agar tidak ada cookie login tersisa
         wp_logout();
 
-        // 5. Redirect ke halaman bayar
+        // Redirect user ke halaman pembayaran (order-pay)
         $checkout_url = $order->get_checkout_payment_url();
         wp_redirect($checkout_url);
         exit;
@@ -342,12 +300,8 @@ add_action('woocommerce_order_status_completed', function ($order_id) {
         ", $order_id));
 
         if ($user_id) {
-            // update_post_meta($order_id, '_customer_user', $user_id);
-            // error_log("[TPT-REG] 🩹 Fallback: Hubungkan order {$order_id} dengan user_id {$user_id}");
-            // Ganti jadi lebih stabil :
-            $order->set_customer_id($user_id);
-            $order->save();
-            error_log("[TPT-REG] 🩹 Fallback: Order #{$order_id} resmi dihubungkan ke User #{$user_id}");
+            update_post_meta($order_id, '_customer_user', $user_id);
+            error_log("[TPT-REG] 🩹 Fallback: Hubungkan order {$order_id} dengan user_id {$user_id}");
         } else {
             error_log("[TPT-REG] ⚠️ Tidak bisa temukan user untuk order {$order_id}");
             return;
